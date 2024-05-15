@@ -1,0 +1,15 @@
+# import them using 'python -m pip install -r requirements.txt'
+
+
+
+pygame
+google-cloud-speech
+
+# openai and its test-code
+python-dotenv
+openai
+SpeechRecognition
+pyaudio
+requests
+six
+numpy
