@@ -1,6 +1,9 @@
 from lib.google_stt import SpeechRecognizer
 from lib.conf import VOICEVOX_APIKEY
 from lib.voicevox import TextToVoiceVoxWeb
+import logging
+import time
+
 
 
 
@@ -49,37 +52,34 @@ def speech_recognition_test():
 
 
 def parroting():
-    # 音声認識とVOICEVOXを組み合わせたオウム返し
-    # SpeechRecognizerクラスのインスタンスを作成
-    # これにより、音声認識機能が利用可能になる
-    recognizer = SpeechRecognizer()
+    recognizer = SpeechRecognizer()  # 音声認識インスタンス
+    text_to_voice = TextToVoiceVoxWeb(apikey=VOICEVOX_APIKEY)  # VOICEVOXインスタンス
+    response_start_threshold = 0.5  # 反応を開始する音声認識の間隙のしきい値
+    response_decide_threshold = 2  # 反応を最後までやり切る音声認識の間隙のしきい値
     
-    # TextToVoiceVoxWebクラスのインスタンスを作成
-    # VOICEVOX_APIKEYを使用して、テキストを音声に変換する機能を提供
-    text_to_voice = TextToVoiceVoxWeb(apikey=VOICEVOX_APIKEY)
-    
-    # 無限ループを開始
-    # このループは、音声認識とテキストの音声変換を継続的に行うために使用される
     while True:
-        # 最後に音声が認識されてからの経過時間を取得
-        # このメソッドは、音声認識が最後に成功してからの時間を秒単位で返す
-        time_since_last = recognizer.get_time_since_last_recognition()
-        
-        # 音声認識がタイムアウトしたかどうかを確認
-        # is_timed_outメソッドは、指定された秒数（ここでは1秒）を超えて音声が認識されていない場合にTrueを返す
-        if recognizer.is_timed_out(1):
-            # 最新の認識結果を取得
-            # get_latest_recognizedメソッドは、認識された最新のテキストを返す
-            text = recognizer.get_latest_recognized()
+        if recognizer.is_timed_out(response_start_threshold):  # タイムアウト確認
+            text = recognizer.get_latest_recognized()  # 最新の認識結果取得
             
-            # 取得したテキストをVOICEVOXに渡して音声に変換
-            # put_textメソッドは、指定されたテキストを音声に変換するために使用される
-            text_to_voice.put_text(text)
-            
-            # 音声認識をリセット
-            # reset_recognitionメソッドは、音声認識の状態を初期化し、次の認識に備える
-            recognizer.reset_recognition()
+            if text and text.strip(): # 再生するテキストがある
+                logging.debug("反応開始！") 
+                text_to_voice.put_text(text)  # テキストを音声に変換
+                # 完全に無音になるまで待機
+                while not recognizer.is_timed_out(response_decide_threshold):
+                    # logging.debug("待機中...")
+                    # 再び話し始めたっぽかったら(言葉に詰まったあと再び話し始めたら)
+                    if not recognizer.is_timed_out(response_start_threshold):
+                        logging.debug("大変だ！また話し始めたぞ！") 
+                        text_to_voice.stop_and_clear()  # 再生をやめて、キューをクリアする
+                        break
+                logging.debug("待機ループ脱出！") 
+                
+                if recognizer.is_timed_out(response_decide_threshold):
+                    recognizer.reset_recognition()  # 音声認識をリセット
+
+
 def main():
+    logging.basicConfig(level=logging.DEBUG)
     # speech_recognition_test()
     # voicevox_web_test()
     parroting()
