@@ -50,16 +50,35 @@ def speech_recognition_test():
 
 def parroting():
     # 音声認識とVOICEVOXを組み合わせたオウム返し
+    # SpeechRecognizerクラスのインスタンスを作成
+    # これにより、音声認識機能が利用可能になる
     recognizer = SpeechRecognizer()
+    
+    # TextToVoiceVoxWebクラスのインスタンスを作成
+    # VOICEVOX_APIKEYを使用して、テキストを音声に変換する機能を提供
     text_to_voice = TextToVoiceVoxWeb(apikey=VOICEVOX_APIKEY)
     
+    # 無限ループを開始
+    # このループは、音声認識とテキストの音声変換を継続的に行うために使用される
     while True:
+        # 最後に音声が認識されてからの経過時間を取得
+        # このメソッドは、音声認識が最後に成功してからの時間を秒単位で返す
         time_since_last = recognizer.get_time_since_last_recognition()
+        
+        # 音声認識がタイムアウトしたかどうかを確認
+        # is_timed_outメソッドは、指定された秒数（ここでは1秒）を超えて音声が認識されていない場合にTrueを返す
         if recognizer.is_timed_out(1):
-            text=recognizer.get_latest_recognized()
+            # 最新の認識結果を取得
+            # get_latest_recognizedメソッドは、認識された最新のテキストを返す
+            text = recognizer.get_latest_recognized()
+            
+            # 取得したテキストをVOICEVOXに渡して音声に変換
+            # put_textメソッドは、指定されたテキストを音声に変換するために使用される
             text_to_voice.put_text(text)
+            
+            # 音声認識をリセット
+            # reset_recognitionメソッドは、音声認識の状態を初期化し、次の認識に備える
             recognizer.reset_recognition()
-
 def main():
     # speech_recognition_test()
     # voicevox_web_test()
