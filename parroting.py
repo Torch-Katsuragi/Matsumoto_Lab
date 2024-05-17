@@ -1,6 +1,13 @@
-from lib.google_stt import SpeechRecognizer
-from lib.conf import VOICEVOX_APIKEY
-from lib.voicevox import TextToVoiceVoxWeb
+"""
+author: Matsumoto
+description: このスクリプトは、音声認識と音声合成のテストを行うためのものです。ストリーミングを意識して作ったので、喋ってる途中に話しかけると中断して話し直してくれます
+known issue: 自分のスピーカーの音を自分で拾うと、再帰的に話し続けてしまう
+"""
+
+
+from speech_lib.google_stt import SpeechRecognizer
+from speech_lib.conf import VOICEVOX_APIKEY
+from speech_lib.voicevox import TextToVoiceVoxWeb
 import logging
 import time
 
