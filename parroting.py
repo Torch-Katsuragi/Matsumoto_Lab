@@ -70,7 +70,7 @@ def parroting():
     recognizer = SpeechRecognizer()  # 音声認識インスタンス
     text_to_voice = TextToVoiceVoxWeb(apikey=VOICEVOX_APIKEY)  # VOICEVOXインスタンス
     response_start_threshold = 0.5  # 反応を開始する音声認識の間隙のしきい値
-    response_decide_threshold = 2  # 反応を最後までやり切る音声認識の間隙のしきい値
+    response_decide_threshold = 3  # 反応を最後までやり切る音声認識の間隙のしきい値
     
     while True:
         if recognizer.is_timed_out(response_start_threshold):  # タイムアウト確認

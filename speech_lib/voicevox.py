@@ -249,7 +249,7 @@ class TextToVoiceVoxWeb(TextToVoiceVox):
             text (str): 音声合成対象のテキスト。
 
         """
+        wav = self.post_web(text=text)
         if self.queue.qsize()>0:
             return
-        wav = self.post_web(text=text)
         self.play_wav(wav)
