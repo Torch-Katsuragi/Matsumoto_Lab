@@ -58,6 +58,14 @@ def speech_recognition_test():
 
 
 
+def respond(text):
+    """
+    入力へのエージェントの反応を記述
+    今回はおうむ返しするだけだけど、ここにいろいろ処理書けばええんちゃう？
+    """
+    return text
+
+
 def parroting():
     recognizer = SpeechRecognizer()  # 音声認識インスタンス
     text_to_voice = TextToVoiceVoxWeb(apikey=VOICEVOX_APIKEY)  # VOICEVOXインスタンス
@@ -68,9 +76,10 @@ def parroting():
         if recognizer.is_timed_out(response_start_threshold):  # タイムアウト確認
             text = recognizer.get_latest_recognized()  # 最新の認識結果取得
             
-            if text and text.strip(): # 再生するテキストがある
+            if text and text.strip(): # 反応すべきテキストがある
                 logging.debug("反応開始！") 
-                text_to_voice.put_text(text)  # テキストを音声に変換
+                response=respond(text)
+                text_to_voice.put_text(response)  # テキストを音声に変換
                 # 完全に無音になるまで待機
                 while not recognizer.is_timed_out(response_decide_threshold):
                     # logging.debug("待機中...")
