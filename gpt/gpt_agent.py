@@ -17,7 +17,7 @@ class GPTAgent():
     """
     会話AIとして最低限の個性を維持するためのクラス
     """
-    def __init__(self,name="アイ",profile=None,voice=None):
+    def __init__(self,name="アイ",profile=None,speaker=None):
         """
         parameters
             name: name of agent
@@ -26,10 +26,11 @@ class GPTAgent():
         """
         self.name=name
         self.profile=profile
-        self.speaker=voice
+        self.speaker=speaker
         self.recent_response=""
         self.dialog=[]
         self.gpt_handler=JsonGPTHandler()
+        self.is_spaeking=False
         self.model="gpt-4o"
 
         self.instruction="""
@@ -107,12 +108,14 @@ class GPTAgent():
         if self.dialog[-1]['role'] == 'user':
             self.dialog.append({'role': 'assistant', 'content': ""})
         full_response={}
+        self.is_spaeking=True
         for item in self.response:
             for key, value in item.items():
                 full_response[key]=value
                 self.dialog[-1]={'role': 'assistant', 'content': str(full_response)}
                 yield item
-        
+        logging.debug("gpt responding ended")
+        self.is_spaeking=False
     
     def speak(self,text):
         """
@@ -123,3 +126,14 @@ class GPTAgent():
             self.speaker.speak(text)
         else:
             print(text)
+    
+    def interrupt(self):
+        """
+        会話中に言葉を遮られたらいったん話すのをやめる
+        """
+        self.speaker.interrupt()
+        if self.is_spaeking:
+            self.is_spaeking=False
+            while self.dialog and self.dialog[-1]['role'] != 'user':
+                self.dialog.pop()
+            self.dialog.pop()

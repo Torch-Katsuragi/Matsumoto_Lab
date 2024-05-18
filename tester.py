@@ -6,6 +6,7 @@ author: Matsumoto
 from speech.google_stt import SpeechRecognizer
 from speech.conf import VOICEVOX_APIKEY
 from speech.voicevox import TextToVoiceVoxWeb
+from speech.mouse_and_ear import VoiceVoxSpeaker
 import logging
 import time
 from gpt.gpt_agent import GPTAgent
@@ -91,9 +92,12 @@ def parroting():
                 if recognizer.is_timed_out(response_decide_threshold):
                     recognizer.reset_recognition()  # 音声認識をリセット
 
+def speakerTest():
+    speaker=VoiceVoxSpeaker(speaker_id=8)
+    speaker.speak("こんにちは")
 
 def agentTest():
-    agent=GPTAgent()
+    agent=GPTAgent(speaker=VoiceVoxSpeaker(speaker_id=2))
     while True:
         response = agent.chat(input())
         for item in agent.pop_response():
@@ -102,12 +106,14 @@ def agentTest():
                     agent.speak(value)
                     print(value)
 
+
 def main():
     logging.basicConfig(level=logging.DEBUG)
     # speech_recognition_test()
     # voicevox_web_test()
     # parroting()
     agentTest()
+    # speakerTest()
 
 
 

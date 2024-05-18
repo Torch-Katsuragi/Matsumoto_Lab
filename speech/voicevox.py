@@ -18,7 +18,7 @@ class TextToVoiceVox(object):
     VoiceVoxを使用してテキストから音声を生成するクラス。
     """
 
-    def __init__(self, host: str = "127.0.0.1", port: str = "52001") -> None:
+    def __init__(self, host: str = "127.0.0.1", port: str = "52001", speaker_id:int=8) -> None:
         """クラスの初期化メソッド。
         Args:
             host (str, optional): VoiceVoxサーバーのホスト名。デフォルトは "127.0.0.1"。
@@ -32,6 +32,7 @@ class TextToVoiceVox(object):
         self.finished = True
         self.voice_thread = Thread(target=self.text_to_voice_thread)
         self.voice_thread.start()
+        self.speaker_id=speaker_id
 
     def __exit__(self) -> None:
         """音声合成スレッドを終了する。"""
@@ -57,6 +58,12 @@ class TextToVoiceVox(object):
         """
         self.queue.queue.clear()  # キューをクリア
         self.play_flg = False  # 再生フラグをFalseに設定
+
+    def set_speaker_id(self,id):
+        """
+        話者idをセット
+        """
+        self.speaker_id=id
 
     def put_text(
         self, text: str, play_now: bool = True, blocking: bool = False
@@ -89,7 +96,7 @@ class TextToVoiceVox(object):
     def post_audio_query(
         self,
         text: str,
-        speaker: int = 8,
+        speaker: None,
         speed_scale: float = 1.0,
     ) -> Any:
         """VoiceVoxサーバーに音声合成クエリを送信する。
@@ -103,9 +110,11 @@ class TextToVoiceVox(object):
             Any: 音声合成クエリの応答。
 
         """
+        if speaker:
+            self.speaker_id=speaker
         params = {
             "text": text,
-            "speaker": speaker,
+            "speaker": self.speaker_id,
             "speed_scale": speed_scale,
             "pre_phoneme_length": 0,
             "post_phoneme_length": 0,
@@ -179,7 +188,7 @@ class TextToVoiceVoxWeb(TextToVoiceVox):
     VoiceVox(web版)を使用してテキストから音声を生成するクラス。
     """
 
-    def __init__(self, apikey: str) -> None:
+    def __init__(self, apikey: str,speaker_id=8) -> None:
         """クラスの初期化メソッド。
         Args:
             apikey (str): VoiceVox wweb版のAPIキー。
@@ -190,6 +199,7 @@ class TextToVoiceVoxWeb(TextToVoiceVox):
         self.play_flg = False
         self.voice_thread = Thread(target=self.text_to_voice_thread)
         self.voice_thread.start()
+        self.speaker_id=speaker_id
 
     def text_to_voice_thread(self) -> None:
         """
@@ -228,7 +238,7 @@ class TextToVoiceVoxWeb(TextToVoiceVox):
             "https://deprecatedapis.tts.quest/v2/voicevox/audio/?key="
             + self.apikey
             + "&speaker="
-            + str(speaker)
+            + str(self.speaker_id)
             + "&pitch="
             + str(pitch)
             + "&intonationScale="
