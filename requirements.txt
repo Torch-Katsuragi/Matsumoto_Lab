@@ -13,3 +13,5 @@ pyaudio
 requests
 six
 numpy
+
+ABCMeta

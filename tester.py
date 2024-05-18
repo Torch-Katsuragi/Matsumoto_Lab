@@ -1,20 +1,14 @@
 """
 author: Matsumoto
-description: このスクリプトは、音声認識と音声合成のテストを行うためのものです。ストリーミングを意識して作ったので、喋ってる途中に話しかけると中断して話し直してくれます
-known issue: 自分のスピーカーの音を自分で拾うと、再帰的に話し続けてしまう
 """
 
 
-from speech_lib.google_stt import SpeechRecognizer
-from speech_lib.conf import VOICEVOX_APIKEY
-from speech_lib.voicevox import TextToVoiceVoxWeb
+from speech.google_stt import SpeechRecognizer
+from speech.conf import VOICEVOX_APIKEY
+from speech.voicevox import TextToVoiceVoxWeb
 import logging
 import time
-
-
-
-
-
+from gpt.gpt_agent import GPTAgent
 
 
 
@@ -58,19 +52,23 @@ def speech_recognition_test():
 
 
 
-def respond(text):
-    """
-    入力へのエージェントの反応を記述
-    今回はおうむ返しするだけだけど、ここにいろいろ処理書けばええんちゃう？
-    """
-    return text
 
 
 def parroting():
+    """
+    description: このスクリプトは、音声認識と音声合成のテストを行うためのものです。ストリーミングを意識して作ったので、喋ってる途中に話しかけると中断して話し直してくれます
+    known issue: 自分のスピーカーの音を自分で拾うと、再帰的に話し続けてしまう
+    """
+    def respond(text):
+        """
+        入力へのエージェントの反応を記述
+        今回はおうむ返しするだけだけど、ここにいろいろ処理書けばええんちゃう？
+        """
+        return text
     recognizer = SpeechRecognizer()  # 音声認識インスタンス
     text_to_voice = TextToVoiceVoxWeb(apikey=VOICEVOX_APIKEY)  # VOICEVOXインスタンス
     response_start_threshold = 0.5  # 反応を開始する音声認識の間隙のしきい値
-    response_decide_threshold = 3  # 反応を最後までやり切る音声認識の間隙のしきい値
+    response_decide_threshold = 5  # 反応を最後までやり切る音声認識の間隙のしきい値
     
     while True:
         if recognizer.is_timed_out(response_start_threshold):  # タイムアウト確認
@@ -94,11 +92,22 @@ def parroting():
                     recognizer.reset_recognition()  # 音声認識をリセット
 
 
+def agentTest():
+    agent=GPTAgent()
+    while True:
+        response = agent.chat(input())
+        for item in agent.pop_response():
+            for key, value in item.items():
+                if key=="response":
+                    agent.speak(value)
+                    print(value)
+
 def main():
     logging.basicConfig(level=logging.DEBUG)
     # speech_recognition_test()
     # voicevox_web_test()
-    parroting()
+    # parroting()
+    agentTest()
 
 
 
