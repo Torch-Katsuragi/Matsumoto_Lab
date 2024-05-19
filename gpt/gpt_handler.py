@@ -3,8 +3,22 @@ from typing import Generator, List
 
 import openai
 
+
 import logging
 
+try:
+    # ルートからimport
+    from conf import *
+except:
+    import os
+
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    OPENAI_APIKEY = os.environ.get("OPENAI_API_KEY")
+
+    
 
 
 class GPTHandler:
@@ -166,7 +180,8 @@ class JsonGPTHandler(GPTHandler):
                 temperature=temperature,
             )
         elif model in self.openai_model_name:
-            result = openai.chat.completions.create(
+            client = openai.OpenAI(api_key=OPENAI_APIKEY)
+            result = client.chat.completions.create(
                 model=model,
                 messages=messages,
                 max_tokens=1024,
@@ -262,7 +277,7 @@ def test_chat_gpt_json_streaming():
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     test_chat_gpt_json_streaming()
     
 

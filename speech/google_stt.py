@@ -15,6 +15,9 @@
 # 1. 必要なライブラリをインストールします。
 # 2. 環境変数GOOGLE_APPLICATION_CREDENTIALSを設定します。
 # 3. スクリプトを実行します。
+# 
+# known issue:
+# - 無音のまま放置するとエラー吐く
 
 
 import os
@@ -114,7 +117,7 @@ class SpeechRecognizer:
     def start_recognition(self):
         """音声認識ループを実行するメソッド"""
         self.stop_event = threading.Event()  # 終了イベントを初期化
-        self.recognition_thread = threading.Thread(target=SpeechRecognizer.recognition_loop, args=(self.recognized_queue, self.client, self.streaming_config, self.stop_event, self))
+        self.recognition_thread = threading.Thread(target=SpeechRecognizer.recognition_loop,name="recognizer", args=(self.recognized_queue, self.client, self.streaming_config, self.stop_event, self))
         self.recognition_thread.start()
     
     def stop_recognition(self):
@@ -143,20 +146,19 @@ class SpeechRecognizer:
             # レスポンスを処理する
             for response in responses:  # レスポンスをイテレート (ストリーミングレスポンスがAPIから断続的に送られてくるので、実質無限ループ)
                 
-                logging.debug("なんか聞こえた！")
-
-                # 最後に音声を認識した時刻を保存
-                with recognizer.time_memory_lock:
-                    current_time = time.time()
-                    if recognizer.last_recognized_time is not None:
-                        time_diff = current_time - recognizer.last_recognized_time
-                        logging.debug(f"前回の認識時刻からの経過時間: {time_diff:.2f}秒")
-                    recognizer.last_recognized_time = current_time
                 # 外部から終了指示が送られてきたら即終了
                 if stop_event.is_set():
                     break
                 if not response.results:  # 結果がなければスキップ
                     continue
+                logging.debug("なんか聞こえた！")
+
+                # 最後に音声を認識した時刻を保存
+                current_time = time.time()
+                if recognizer.last_recognized_time is not None:
+                    time_diff = current_time - recognizer.last_recognized_time
+                    logging.debug(f"前回の認識時刻からの経過時間: {time_diff:.2f}秒")
+                recognizer.last_recognized_time = current_time
 
                 result = response.results[0]  # 最初の結果を取得
                 if not result.alternatives:  # 代替テキストがなければスキップ
@@ -166,9 +168,9 @@ class SpeechRecognizer:
 
                 # 結果を出力&保存
                 logging.debug(f"認識結果: {transcript}")
-                queue.put(transcript)  # キューが空の場合、新しい結果を追加
+                queue.put(transcript)
             
-            logging.debug("スレッド終了")
+            logging.debug("音声認識スレッド終了")
 
     def reset_recognition(self):
         """音声認識をリセットするメソッド"""

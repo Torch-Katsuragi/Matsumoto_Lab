@@ -3,12 +3,14 @@ author Matsumoto
 音声認識とか音声合成とかの外部からの振舞いを統一して切り変えやすくするためのラッパ群
 """
 try:
-    from speech.voicevox import TextToVoiceVoxWeb
-    from speech.conf import *
+    from .voicevox import TextToVoiceVoxWeb
+    from .conf import *
 except:
     from voicevox import TextToVoiceVoxWeb
     from conf import *
 
+from queue import Queue
+from threading import Thread
 
 class Speaker:
     def speak(self, text: str) -> None:
@@ -31,6 +33,7 @@ class VoiceVoxSpeaker(Speaker):
     def __init__(self, speaker_id):
         """
         VoiceVoxSpeakerの初期化メソッド。
+        子供っぽい路線で攻めるなら、0,3,28,45あたり？
         | キャラクター名 | 表情 | speaker_id |
         | --- | --- | --- |
         | 四国めたん | ノーマル | 2 |
@@ -119,3 +122,65 @@ class VoiceVoxSpeaker(Speaker):
         """
         self.tts.stop_and_clear()  # 再生をやめて、キューをクリアする
 
+
+class ParallelSpeaker:
+    """Speakerをラップして並列処理を可能にするクラス"""
+    def __init__(self, speaker: Speaker):
+        """
+        ParallelSpeakerの初期化メソッド。
+
+        Args:
+            speaker (Speaker): 再生に使用するSpeakerオブジェクト。
+        """
+        self.speaker = speaker
+        self.queue = Queue()
+        self.playing = False
+        self.thread = Thread(target=self._play_from_queue)
+        self.thread.start()
+
+    def _play_from_queue(self):
+        """
+        キューからテキストを取り出して再生する内部メソッド。
+        """
+        while True:
+            if not self.queue.empty() and not self.playing:
+                text = self.queue.get()
+                self.playing = True
+                self.speaker.speak(text)
+                self.playing = False
+
+    def speak(self, text: str):
+        """
+        再生キューにテキストを追加する。
+
+        Args:
+            text (str): 再生するテキスト。
+        """
+        self.queue.put(text)
+
+    def interrupt(self):
+        """
+        再生を中断し、キューをクリアする。
+        """
+        self.speaker.interrupt()
+        self.queue.queue.clear()
+        self.playing = False
+
+
+def main():
+    speaker = VoiceVoxSpeaker(speaker_id=8)
+    parallel_speaker = ParallelSpeaker(speaker)
+
+    # テスト用のテキストを追加
+    parallel_speaker.speak("こんにちは、これはテストメッセージです。")
+    parallel_speaker.speak("もう一つのメッセージを追加します。")
+
+    # 再生を少し待つ
+    import time
+    time.sleep(10)
+
+    # 再生を中断してキューをクリア
+    parallel_speaker.interrupt()
+
+if __name__ == "__main__":
+    main()

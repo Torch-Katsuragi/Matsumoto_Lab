@@ -10,8 +10,10 @@ from typing import Any
 import pyaudio
 import requests
 
-from .err_handler import ignoreStderr
-
+try:
+    from .err_handler import ignoreStderr
+except:
+    from err_handler import ignoreStderr
 
 class TextToVoiceVox(object):
     """
@@ -30,7 +32,7 @@ class TextToVoiceVox(object):
         self.port = port
         self.play_flg = False
         self.finished = True
-        self.voice_thread = Thread(target=self.text_to_voice_thread)
+        self.voice_thread = Thread(target=self.text_to_voice_thread,name="speaker")
         self.voice_thread.start()
         self.speaker_id=speaker_id
 
@@ -197,7 +199,7 @@ class TextToVoiceVoxWeb(TextToVoiceVox):
         self.queue: Queue[str] = Queue()
         self.apikey = apikey
         self.play_flg = False
-        self.voice_thread = Thread(target=self.text_to_voice_thread)
+        self.voice_thread = Thread(target=self.text_to_voice_thread,name="speaker")
         self.voice_thread.start()
         self.speaker_id=speaker_id
 
