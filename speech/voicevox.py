@@ -34,7 +34,10 @@ class TextToVoiceVox(object):
         self.finished = True
         self.voice_thread = Thread(target=self.text_to_voice_thread,name="speaker")
         self.voice_thread.start()
-        self.speaker_id=speaker_id
+        self.speaker_id=self.set_speaker_id(speaker_id)
+
+    def set_speaker_id(self,id):
+        self.speaker_id=id
 
     def __exit__(self) -> None:
         """音声合成スレッドを終了する。"""
@@ -203,16 +206,16 @@ class TextToVoiceVoxWeb(TextToVoiceVox):
         self.voice_thread.start()
         self.speaker_id=speaker_id
 
-    def text_to_voice_thread(self) -> None:
-        """
-        音声合成スレッドの実行関数。
-        キューからテキストを取り出し、text_to_voice関数を呼び出す。
+    # def text_to_voice_thread(self) -> None:
+    #     """
+    #     音声合成スレッドの実行関数。
+    #     キューからテキストを取り出し、text_to_voice関数を呼び出す。
 
-        """
-        while True:
-            if self.queue.qsize() > 0 and self.play_flg:
-                text = self.queue.get()
-                self.text_to_voice(text)
+    #     """
+    #     while True:
+    #         if self.queue.qsize() > 0 and self.play_flg:
+    #             text = self.queue.get()
+    #             self.text_to_voice(text)
 
     def post_web(
         self,

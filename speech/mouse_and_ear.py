@@ -11,6 +11,7 @@ except:
 
 from queue import Queue
 from threading import Thread
+import logging
 
 class Speaker:
     def speak(self, text: str) -> None:
@@ -30,6 +31,8 @@ class Speaker:
 
 
 class VoiceVoxSpeaker(Speaker):
+    tts = None  # 音声合成用のインスタンスをクラス変数として定義(じゃないとthreadが乱立する)
+
     def __init__(self, speaker_id):
         """
         VoiceVoxSpeakerの初期化メソッド。
@@ -104,83 +107,39 @@ class VoiceVoxSpeaker(Speaker):
         | †聖騎士 紅桜† | ノーマル | 51 |
         | 雀松朱司 | ノーマル | 52 |
         """
-        self.tts = TextToVoiceVoxWeb(apikey=VOICEVOX_APIKEY,speaker_id=speaker_id)
-        self.speaker_id=speaker_id
+        self.speaker_id = speaker_id
+        # 初めてのインスタンス定義時にだけ音声合成クラスを呼び出し
+        if VoiceVoxSpeaker.tts is None:
+            VoiceVoxSpeaker.tts = TextToVoiceVoxWeb(apikey=VOICEVOX_APIKEY)
 
     def speak(self, text: str) -> None:
         """
         テキストを音声に変換して再生する。
+        音声の再生か完了するまで処理は待機される
 
         Args:
             text (str): 音声合成対象のテキスト。
         """
-        self.tts.put_text(text)
+        VoiceVoxSpeaker.tts.set_speaker_id(self.speaker_id)
+        VoiceVoxSpeaker.tts.put_text(text, blocking=True)
+        logging.debug("speech complete")
 
     def interrupt(self):
         """
         音声再生を中断し、キューをクリアする。
         """
-        self.tts.stop_and_clear()  # 再生をやめて、キューをクリアする
+        VoiceVoxSpeaker.tts.stop_and_clear()  # 再生をやめて、キューをクリアする
 
-
-class ParallelSpeaker:
-    """Speakerをラップして並列処理を可能にするクラス"""
-    def __init__(self, speaker: Speaker):
-        """
-        ParallelSpeakerの初期化メソッド。
-
-        Args:
-            speaker (Speaker): 再生に使用するSpeakerオブジェクト。
-        """
-        self.speaker = speaker
-        self.queue = Queue()
-        self.playing = False
-        self.thread = Thread(target=self._play_from_queue)
-        self.thread.start()
-
-    def _play_from_queue(self):
-        """
-        キューからテキストを取り出して再生する内部メソッド。
-        """
-        while True:
-            if not self.queue.empty() and not self.playing:
-                text = self.queue.get()
-                self.playing = True
-                self.speaker.speak(text)
-                self.playing = False
-
-    def speak(self, text: str):
-        """
-        再生キューにテキストを追加する。
-
-        Args:
-            text (str): 再生するテキスト。
-        """
-        self.queue.put(text)
-
-    def interrupt(self):
-        """
-        再生を中断し、キューをクリアする。
-        """
-        self.speaker.interrupt()
-        self.queue.queue.clear()
-        self.playing = False
 
 
 def main():
-    speaker = VoiceVoxSpeaker(speaker_id=8)
-    parallel_speaker = ParallelSpeaker(speaker)
+    zundamon = VoiceVoxSpeaker(speaker_id=3)
+    metan = VoiceVoxSpeaker(speaker_id=2)
 
     # テスト用のテキストを追加
-    parallel_speaker.speak("こんにちは、これはテストメッセージです。")
-    parallel_speaker.speak("もう一つのメッセージを追加します。")
+    zundamon.speak("こんにちは、ずんだもんなのだ")
+    metan.speak("四国めたんよ")
 
-    # 再生を少し待つ
-    import time
-    time.sleep(10)
-
-    # 再生を中断してキューをクリア
-    parallel_speaker.interrupt()
 
 if __name__ == "__main__":
     main()
