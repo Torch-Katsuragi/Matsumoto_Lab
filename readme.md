@@ -31,7 +31,15 @@ setup.ps1を参考にしてください。なにかモジュールが足りな�
 
 ## 内容物
 
-### parroting.py
+### tester.py
 
-parroting.pyは、音声認識を使用して入力された音声をそのまま音声合成で出力するスクリプトです。このスクリプトは、Google Cloud Speech-to-TextとVOICEVOXを使用しています。
-もちろん、このままでは何の意味もないのでうまく自分のプロジェクトに取り入れて価値創造しましょう。
+tester.pyに、成果物の実行例がまとめてあります(内容はコメントで解説)。
+
+たとえば、以下のようなものがあります
+- `agentTest()`: GPTAgentを使用して、ユーザーの入力に対して応答を生成し、音声で出力するテスト。
+- `threadAgentTest()`: GPTAgentを使用して、ユーザーの入力に対して非同期で応答を生成するテスト。
+- `agentConversationTest()`: 音声認識→GPT→音声合成の一連の流れをテストするスクリプト。
+- `multiAgentConversationTest()`: 複数のVoiceVoxスピーカーを使用して、音声認識→GPT→音声合成のテストを行うスクリプト。
+- `voicevox_web_test()`: VOICEVOXのWeb APIを使用してテキストを音声に変換するテスト関数。
+- `speech_recognition_test()`: 音声認識のテスト関数。
+- `parroting()`: 音声認識と音声合成のテストを行うスクリプト。喋っている途中に話しかけると中断して話し直す機能を持つ。
