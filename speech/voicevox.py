@@ -9,6 +9,7 @@ from typing import Any
 
 import pyaudio
 import requests
+import logging
 
 try:
     from .err_handler import ignoreStderr
@@ -50,19 +51,23 @@ class TextToVoiceVox(object):
 
         """
         while True:
-            if self.queue.qsize() > 0 and self.play_flg:
+            if self.queue.qsize() > 0:
                 text = self.queue.get()
                 self.text_to_voice(text)
             if self.queue.qsize() == 0:
                 self.finished = True
     
 
+    def allow_speech(self):
+        self.play_flg=True
+
     def stop_and_clear(self) -> None:
         """
         キューをクリアし、音声の再生を直ちに取りやめる。
         """
         self.queue.queue.clear()  # キューをクリア
-        self.play_flg = False  # 再生フラグをFalseに設定
+        self.play_flg = False  # 再生フラグをFalseに設定(再生中なら即ループ脱出)
+        self.finished=True
 
     def set_speaker_id(self,id):
         """
@@ -168,7 +173,10 @@ class TextToVoiceVox(object):
             )
             chunk = 1024
             data = wr.readframes(chunk)
-            while data and self.play_flg:
+            while data:
+                if self.play_flg is False:
+                    logging.debug("speech interrupted")
+                    break
                 stream.write(data)
                 data = wr.readframes(chunk)
             time.sleep(0.2)
@@ -266,5 +274,6 @@ class TextToVoiceVoxWeb(TextToVoiceVox):
         """
         wav = self.post_web(text=text)
         if self.queue.qsize()>0:
+            logging.debug("speech canceled")
             return
         self.play_wav(wav)

@@ -113,7 +113,7 @@ def threadAgentTest():
     agent=GPTAgent(speaker=VoiceVoxSpeaker(speaker_id=2))
     while True:
         text=input()
-        agent.stop_chatting()
+        agent.stop_chat_thread()
         agent.start_chatting(text)
 
 def agentConversationTest():
@@ -173,23 +173,26 @@ def multiAgentConversationTest():
     agent=MultiGPTAgent(speakers=speakers)
 
     while True:
+        text=recognizer.get_latest_recognized()
+        if text and text.strip(): # 反応すべきテキストがある
+            for speaker in speakers: # なんか喋ってたら切り上げさせて、聞くのに集中する
+                speaker.interrupt()
+                agent.stop_chat_thread()
         if recognizer.is_timed_out(response_start_threshold):  # タイムアウト確認
-            text = recognizer.get_latest_recognized()  # 最新の認識結果取得
-            
             if text and text.strip(): # 反応すべきテキストがある
                 logging.debug("反応開始！") 
                 agent.start_chatting(text)
-                # 完全に無音になるまで待機
-                while not recognizer.is_timed_out(response_decide_threshold):
+                # エージェントが話し終わるまで待機
+                while not agent.end_event.is_set():
                     # logging.debug("待機中...")
                     # 再び話し始めたっぽかったら(言葉に詰まったあと再び話し始めたら)
-                    if not recognizer.is_timed_out(response_start_threshold):
-                        if recognizer.get_latest_recognized() != text:
-                            logging.debug("大変だ！また話し始めたぞ！") 
-                            for speaker in speakers:
-                                speaker.interrupt()
-                            agent.cancel_chatting()
-                            break
+                    if recognizer.get_latest_recognized() != text:
+                        logging.debug("大変だ！また話し始めたぞ！") 
+                        for speaker in speakers:
+                            speaker.interrupt()
+                        agent.cancel_chatting()
+                        break
+                    time.sleep(0.01)
                 logging.debug("待機ループ脱出！") 
                 
                 if recognizer.is_timed_out(response_decide_threshold):

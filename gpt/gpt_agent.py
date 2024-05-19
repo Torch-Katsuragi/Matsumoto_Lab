@@ -4,6 +4,7 @@ try:
     from gpt.gpt_handler import GPTHandler, JsonGPTHandler
     from speech.mouse_and_ear import Speaker
 except ImportError:
+    # 相対パスからimport
     from .gpt_handler import GPTHandler, JsonGPTHandler
     from .speech.mouse_and_ear import Speaker
 
@@ -16,12 +17,15 @@ class GPTAgent:
     """
     会話AIとして最低限の個性を維持するためのクラス
     """
+
     def __init__(self, name="アイ", profile=None, speakers=[]):
         """
-        parameters
-            name: エージェントの名前
-            profile: エージェントのプロフィール
-            speakers: 音声合成用のスピーカーリスト
+        コンストラクタ
+
+        Parameters:
+            name (str): エージェントの名前
+            profile (str): エージェントのプロフィール
+            speakers (list): 音声合成用のスピーカーリスト
         """
         self.name = name
         self.profile = profile
@@ -40,8 +44,8 @@ class GPTAgent:
         """
         GPTの初期設定を行うメソッド
         """
-        self.model = "gpt-4o"
-        self.gpt_handler = JsonGPTHandler()
+        self.model = "gpt-4o"  # 使用するGPTモデルを設定
+        self.gpt_handler = JsonGPTHandler()  # GPTハンドラーを初期化
 
         # エージェントの指示文を設定
         self.instruction = f"""
@@ -80,82 +84,103 @@ class GPTAgent:
 """
         # キャラクター設定を結合
         personality = self.instruction + self.profile + self.output_format
-        logging.debug("キャラ設定\n" + personality)
-        self.personality_message = [{'role': 'system', 'content': personality}]
+        logging.debug("キャラ設定\n" + personality)  # キャラクター設定をデバッグログに出力
+        self.personality_message = [{'role': 'system', 'content': personality}]  # キャラクター設定をシステムメッセージとして保存
 
     def get_name(self):
         """
         エージェントの名前を取得するメソッド
+
+        Returns:
+            str: エージェントの名前
         """
         return self.name
 
     def speak(self, text, speaker_index=0):
         """
         入力されたテキスト(もしくは最後のGPTの応答)を音声合成して出力するメソッド
+
+        Parameters:
+            text (str): 音声合成するテキスト
+            speaker_index (int): 使用するスピーカーのインデックス
         """
         try:
-            self.speakers[speaker_index].speak(text)
+            self.speakers[speaker_index].speak(text)  # 指定されたスピーカーでテキストを音声合成
         except Exception as e:
-            logging.debug("Failed to synthesize speech: %s", e)
-        print(text)
+            logging.debug("Failed to synthesize speech: %s", e)  # 音声合成に失敗した場合のエラーログ
+        print(text)  # 合成された音声テキストをコンソールに出力
 
     def update_dialog(self):
         """
         self.response_queueの要素をself.dialogに追加するメソッド
         """
-        full_response = {}
+        full_response = {}  # 完全な応答を格納する辞書
         while not self.response_queue.empty():
-            response_item = self.response_queue.get()
-            full_response.update(response_item)
-        logging.debug("dialog updated")
-        self.dialog.append({'role': 'assistant', 'content': str(full_response)})
+            response_item = self.response_queue.get()  # キューから応答アイテムを取得
+            full_response.update(response_item)  # 応答アイテムを完全な応答に追加
+        logging.debug("dialog updated")  # ダイアログが更新されたことをデバッグログに出力
+        self.dialog.append({'role': 'assistant', 'content': str(full_response)})  # ダイアログにアシスタントの応答を追加
 
     def start_chatting(self, message: str):
         """
         userの言葉に対するchatGPTの応答を取得するメソッド
-        """
-        self.update_dialog()
-        self.dialog.append({'role': 'user', 'content': message})
 
-        gpt_handler = JsonGPTHandler()
-        messages = self.personality_message + self.dialog
+        Parameters:
+            message (str): userのメッセージ
+        """
+        self.update_dialog()  # ダイアログを更新
+        self.dialog.append({'role': 'user', 'content': message})  # ダイアログにユーザーのメッセージを追加
+
+        gpt_handler = JsonGPTHandler()  # GPTハンドラーを初期化
+        messages = self.personality_message + self.dialog  # メッセージリストを作成
         self.interrupt_event = threading.Event()  # 中断イベントを初期化
         self.end_event = threading.Event()  # 応答終了イベントを初期化
+        # チャットスレッドを開始
         self.chatting_thread = threading.Thread(target=self.chatting_loop, name="chatter", args=(messages, gpt_handler, self.interrupt_event, self.end_event))
         self.chatting_thread.start()
 
     def parse_and_respond(self, item):
         """
         GPTから帰ってきた辞書要素をパースして適切な返答を行うメソッド
+
+        Parameters:
+            item (dict): GPTからの応答
         """
         for i, key in enumerate(["response"]):
             if key in item:
-                self.speak(item[key], speaker_index=i)
+                self.speak(item[key], speaker_index=i)  # 応答を音声合成して出力
 
     def chatting_loop(self, messages, gpt_handler, interrupt_event, end_event):
         """
         並列処理メソッド: GPTの応答を処理し、スピーカーに出力する
+
+        Parameters:
+            messages (list): GPTに送信するメッセージのリスト
+            gpt_handler (JsonGPTHandler): GPTハンドラー
+            interrupt_event (threading.Event): 中断イベント
+            end_event (threading.Event): 応答終了イベント
         """
-        start_time = time.time()
+        start_time = time.time()  # 処理開始時間を記録
         response = gpt_handler.chat(messages, self.model)  # ストリーミングレスポンスを取得
         for item in response:  # 疑似ループでレスポンスを処理
-            if interrupt_event.is_set():
+            if interrupt_event.is_set():  # 中断イベントがセットされているか確認
                 for speaker in self.speakers:
-                    speaker.interrupt()
+                    speaker.interrupt()  # スピーカーを中断
                 return
-            self.response_queue.put(item)
-            self.parse_and_respond(item)
-        end_event.set()
-        response_time = time.time() - start_time
-        logging.debug(f"応答時間: {response_time}秒")
+            self.response_queue.put(item)  # 応答アイテムをキューに追加
+            self.parse_and_respond(item)  # 応答アイテムをパースして返答
+        end_event.set()  # 応答終了イベントをセット
+        response_time = time.time() - start_time  # 応答時間を計算
+        logging.debug(f"応答時間: {response_time}秒")  # 応答時間をデバッグログに出力
 
-    def stop_chatting(self):
+    def stop_chat_thread(self):
         """
         チャットを停止するメソッド
         """
         if self.chatting_thread and self.chatting_thread.is_alive():
             self.interrupt_event.set()  # スレッド終了イベントをセット
-            self.chatting_thread = None  # スレッドオブジェクトをクリアして次に進む。まだスレッドは動いてるけど、フラグ送ったしそのうち終了してくれるよ。
+            self.chatting_thread = None  # スレッドオブジェクトをクリアして次に進む
+            self.response_queue.queue.clear() 
 
     def cancel_chatting(self):
         """
@@ -167,15 +192,18 @@ class GPTAgent:
         # 'user'の発話が見つかった場合、その発話までself.dialogをリセットする
         if last_user_index is not None:
             self.dialog = self.dialog[:last_user_index]
+        self.stop_chat_thread()
 
 
 # 複数エージェントでも動かせるよって例
 class MultiGPTAgent(GPTAgent):
     
     def init_GPT(self):
-        # chatGPT関連設定
-        self.model = "gpt-4o"
-        self.gpt_handler = JsonGPTHandler()
+        """
+        GPTの初期設定を行うメソッド (複数エージェント用)
+        """
+        self.model = "gpt-4o"  # 使用するGPTモデルを設定
+        self.gpt_handler = JsonGPTHandler()  # GPTハンドラーを初期化
 
         self.instruction = f"""
 # Instruction
@@ -186,7 +214,8 @@ class MultiGPTAgent(GPTAgent):
 - 返答は短かくして相手に話させるのが望ましい
 - userの話に共感する
 - 会話を続ける努力をする
-- userの事は「user」とは呼ばない。名前を教えられたら名前で呼ぶ
+- userの事は「user」とは呼ばない。名前を教えられるまでは二人称で呼び、教えられたら名前で呼ぶ
+- どちらか片方は、質問や話題提供などでuserの話を促す
 """
         if self.profile is None:
             self.profile = f"""
@@ -222,13 +251,20 @@ class MultiGPTAgent(GPTAgent):
         self.output_format = r"""
 # Output format
 出力はJSON形式で、以下のフォーマットに従ってください。
+ただし、response1とresponse2の順番は入れ替えて構いません
 {"response1": "ここに、ずんだもんのuserへの言葉を入れる","response2": "ここに、四国めたんのuserへの言葉を入れる", "emotion": "ここに、文脈から連想できる感情を入れる"}
 """
         personality = self.instruction + self.profile + self.output_format
-        logging.debug("キャラ設定\n" + personality)
-        self.personality_message = [{'role': 'system', 'content': personality}]
+        logging.debug("キャラ設定\n" + personality)  # キャラクター設定をデバッグログに出力
+        self.personality_message = [{'role': 'system', 'content': personality}]  # キャラクター設定をシステムメッセージとして保存
     
     def parse_and_respond(self, item):
-        for i,key in enumerate(["response1", "response2"]):
+        """
+        GPTから帰ってきた辞書要素をパースして適切な返答を行うメソッド (複数エージェント用)
+
+        Parameters:
+            item (dict): GPTからの応答
+        """
+        for i, key in enumerate(["response1", "response2"]):
             if key in item:
-                self.speak(item[key],speaker_index=i)
+                self.speak(item[key], speaker_index=i)  # 応答を音声合成して出力
