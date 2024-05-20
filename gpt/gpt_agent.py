@@ -1,12 +1,7 @@
 
-try:
-    # ルートからimport
-    from gpt.gpt_handler import GPTHandler, JsonGPTHandler
-    from speech.mouse_and_ear import Speaker
-except ImportError:
-    # 相対パスからimport
-    from .gpt_handler import GPTHandler, JsonGPTHandler
-    from .speech.mouse_and_ear import Speaker
+
+# 相対パスからimport
+from .gpt_handler import GPTHandler, JsonGPTHandler
 
 import logging
 import threading
