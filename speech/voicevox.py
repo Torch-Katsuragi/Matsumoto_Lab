@@ -21,7 +21,7 @@ class TextToVoiceVox(object):
     VoiceVoxを使用してテキストから音声を生成するクラス。
     """
 
-    def __init__(self, host: str = "127.0.0.1", port: str = "52001", speaker_id:int=8) -> None:
+    def __init__(self, host: str = "127.0.0.1", port: str = "50021", speaker_id:int=8) -> None:
         """クラスの初期化メソッド。
         Args:
             host (str, optional): VoiceVoxサーバーのホスト名。デフォルトは "127.0.0.1"。
@@ -35,7 +35,7 @@ class TextToVoiceVox(object):
         self.finished = True
         self.voice_thread = Thread(target=self.text_to_voice_thread,name="speaker")
         self.voice_thread.start()
-        self.speaker_id=self.set_speaker_id(speaker_id)
+        self.set_speaker_id(speaker_id)
 
     def set_speaker_id(self,id):
         self.speaker_id=id
@@ -56,6 +56,7 @@ class TextToVoiceVox(object):
                 self.text_to_voice(text)
             if self.queue.qsize() == 0:
                 self.finished = True
+            time.sleep(0.01)
     
 
     def allow_speech(self):
@@ -65,9 +66,9 @@ class TextToVoiceVox(object):
         """
         キューをクリアし、音声の再生を直ちに取りやめる。
         """
+        logging.debug(f"interrupted in {self.__class__.__name__}.stop_and_clear")
         self.queue.queue.clear()  # キューをクリア
         self.play_flg = False  # 再生フラグをFalseに設定(再生中なら即ループ脱出)
-        self.finished=True
 
     def set_speaker_id(self,id):
         """
@@ -92,8 +93,7 @@ class TextToVoiceVox(object):
         self.queue.put(text)
         self.finished = False
         if blocking:
-            while not self.finished:
-                time.sleep(0.01)
+            self.wait_finish()
 
     def wait_finish(self) -> None:
         """
@@ -106,7 +106,7 @@ class TextToVoiceVox(object):
     def post_audio_query(
         self,
         text: str,
-        speaker: None,
+        speaker:int=8,
         speed_scale: float = 1.0,
     ) -> Any:
         """VoiceVoxサーバーに音声合成クエリを送信する。
@@ -120,8 +120,6 @@ class TextToVoiceVox(object):
             Any: 音声合成クエリの応答。
 
         """
-        if speaker:
-            self.speaker_id=speaker
         params = {
             "text": text,
             "speaker": self.speaker_id,
@@ -130,6 +128,7 @@ class TextToVoiceVox(object):
             "post_phoneme_length": 0,
         }
         address = "http://" + self.host + ":" + self.port + "/audio_query"
+        logging.debug(f"Address: {address}")
         res = requests.post(address, params=params)
         return res.json()
 
@@ -146,7 +145,7 @@ class TextToVoiceVox(object):
         Returns:
             bytes: 合成された音声データ。
         """
-        params = {"speaker": 8}
+        params = {"speaker": self.speaker_id}
         headers = {"content-type": "application/json"}
         audio_query_response_json = json.dumps(audio_query_response)
         address = "http://" + self.host + ":" + self.port + "/synthesis"
@@ -169,6 +168,7 @@ class TextToVoiceVox(object):
                 format=p.get_format_from_width(wr.getsampwidth()),
                 channels=wr.getnchannels(),
                 rate=wr.getframerate(),
+                # rate=24000,
                 output=True,
             )
             chunk = 1024
@@ -272,8 +272,26 @@ class TextToVoiceVoxWeb(TextToVoiceVox):
             text (str): 音声合成対象のテキスト。
 
         """
+        
+        logging.debug("Speech synthesis requested")
         wav = self.post_web(text=text)
-        if self.queue.qsize()>0:
-            logging.debug("speech canceled")
+        logging.debug("Received WAV file")
+        if self.queue.qsize() > 0:
+            logging.debug("Speech synthesis canceled")
             return
         self.play_wav(wav)
+
+
+
+
+
+
+
+def main():
+    logging.basicConfig(level=logging.DEBUG)
+    text_to_voice = TextToVoiceVox(speaker_id=8)
+
+    text_to_voice.put_text("こんにちは")
+
+if __name__ == "__main__":
+    main()

@@ -32,6 +32,7 @@ class GPTAgent:
         self.interrupt_event = threading.Event()  # 中断イベントを初期化
         self.end_event = threading.Event()  # チャット終了イベントを初期化
         self.response_queue = queue.Queue()  # gpt出力を保存するキューを初期化
+        self.characters=[]
 
         self.init_GPT()
 
@@ -75,10 +76,11 @@ class GPTAgent:
         self.output_format = r"""
 # Output format
 出力はJSON形式で、以下のフォーマットに従ってください。
-{"response": "ここに、あなたのuserへの言葉を入れる", "emotion": "ここに、あなたの今の感情を入れる"}
+{"アイ": "ここに、あなたのuserへの言葉を入れる", "emotion": "ここに、あなたの今の感情を入れる"}
 """
         # キャラクター設定を結合
         personality = self.instruction + self.profile + self.output_format
+        self.characters=[self.name]
         logging.debug("キャラ設定\n" + personality)  # キャラクター設定をデバッグログに出力
         self.personality_message = [{'role': 'system', 'content': personality}]  # キャラクター設定をシステムメッセージとして保存
 
@@ -104,17 +106,32 @@ class GPTAgent:
         except Exception as e:
             logging.debug("Failed to synthesize speech: %s", e)  # 音声合成に失敗した場合のエラーログ
         print(text)  # 合成された音声テキストをコンソールに出力
+    
 
-    def update_dialog(self):
+    def update_dialog(self)->bool:
         """
         self.response_queueの要素をself.dialogに追加するメソッド
+        何か要素をdialogに保存したらtrue, そうでないならfalseを返す
         """
         full_response = {}  # 完全な応答を格納する辞書
         while not self.response_queue.empty():
             response_item = self.response_queue.get()  # キューから応答アイテムを取得
             full_response.update(response_item)  # 応答アイテムを完全な応答に追加
-        logging.debug("dialog updated")  # ダイアログが更新されたことをデバッグログに出力
-        self.dialog.append({'role': 'assistant', 'content': str(full_response)})  # ダイアログにアシスタントの応答を追加
+        logging.debug("dialog updated: %s", full_response)  # ダイアログが更新されたことをデバッグログに出力し、full_responseの中身も出力
+        if self.dialog and self.dialog[-1]['role'] == 'assistant':
+            # 最後の要素のcontentを取得
+            last_content = self.dialog[-1]['content']
+            # contentが辞書形式の文字列であるか確認し、辞書に変換
+            last_dict = eval(last_content) if last_content.startswith('{') and last_content.endswith('}') else {}
+            # full_responseを既存の辞書に追加
+            last_dict.update(full_response)
+            # 更新された辞書を文字列に変換してcontentに格納
+            self.dialog[-1]['content'] = str(last_dict)
+        else:
+            # 最後の要素がassistantでない場合、新しい要素を追加
+            if full_response:
+                self.dialog.append({'role': 'assistant', 'content': str(full_response)})  # ダイアログにアシスタントの応答を追加
+        return bool(full_response)
 
     def start_chatting(self, message: str):
         """
@@ -141,7 +158,8 @@ class GPTAgent:
         Parameters:
             item (dict): GPTからの応答
         """
-        for i, key in enumerate(["response"]):
+        
+        for i, key in enumerate(self.characters):
             if key in item:
                 self.speak(item[key], speaker_index=i)  # 応答を音声合成して出力
 
@@ -159,8 +177,6 @@ class GPTAgent:
         response = gpt_handler.chat(messages, self.model)  # ストリーミングレスポンスを取得
         for item in response:  # 疑似ループでレスポンスを処理
             if interrupt_event.is_set():  # 中断イベントがセットされているか確認
-                for speaker in self.speakers:
-                    speaker.interrupt()  # スピーカーを中断
                 return
             self.response_queue.put(item)  # 応答アイテムをキューに追加
             self.parse_and_respond(item)  # 応答アイテムをパースして返答
@@ -179,14 +195,10 @@ class GPTAgent:
 
     def cancel_chatting(self):
         """
-        前の話とその続きが同時に来るときは、userの発話までさかのぼってself.dialogをリセットするメソッド
+        ユーザーの指示をキャンセルするメソッド
         """
-        # 最後の'user'の発話のインデックスを探す
-        last_user_index = next((i for i in range(len(self.dialog) - 1, -1, -1) if self.dialog[i]['role'] == 'user'), None)
-
-        # 'user'の発話が見つかった場合、その発話までself.dialogをリセットする
-        if last_user_index is not None:
-            self.dialog = self.dialog[:last_user_index]
+        if self.dialog and self.dialog[-1].get("role") == "user":
+            self.dialog.pop()
         self.stop_chat_thread()
 
 
@@ -204,13 +216,21 @@ class MultiGPTAgent(GPTAgent):
 # Instruction
 あなたたちは、2人組の会話AIです。後述するプロフィールに従い、楽しくおしゃべりしてください。
 ただし、以下の点に気を付けてください
-- 一人が一度に話す内容は一文にとどめる
+- 一人が一度に話す内容は短い一文にとどめる
+- どちらかは必ず質問する
+- 質問や話題提供でuserの話を促す
+    - 今日の天気
+    - 好きな(食べ物/本/動物/音楽)
+    - 出身地
+    - 趣味
+    - 将来の夢
+    - 今日やったこと
+    - 子供のころの思い出
+    - どっち派? (キノコの里?タケノコの山? / 犬派?猫派? / etc)
+- AI同士で質問はしない
 - 敬語は使わず、友人として接する
-- 返答は短かくして相手に話させるのが望ましい
-- userの話に共感する
-- 会話を続ける努力をする
+- 話題がひと段落したら、次の話題を提供する
 - userの事は「user」とは呼ばない。名前を教えられるまでは二人称で呼び、教えられたら名前で呼ぶ
-- どちらか片方は、質問や話題提供などでuserの話を促す
 """
         if self.profile is None:
             self.profile = f"""
@@ -243,23 +263,71 @@ class MultiGPTAgent(GPTAgent):
     - 例3: あなたの趣味は何かしら？
 
 """
-        self.output_format = r"""
+        self.io_format = r"""
+
+# Input format
+入力はuserの発話を音声認識してテキスト化したものです。
+音声認識は、あなたの出力の途中で更新されることがあります。その場合は、入力の最初に"updated: "の文字列を付加します
+
 # Output format
-出力はJSON形式で、以下のフォーマットに従ってください。
-ただし、response1とresponse2の順番は入れ替えて構いません
-{"response1": "ここに、ずんだもんのuserへの言葉を入れる","response2": "ここに、四国めたんのuserへの言葉を入れる", "emotion": "ここに、文脈から連想できる感情を入れる"}
+- 出力はJSON形式で、以下のフォーマットに従ってください。
+ただし、キャラクターたちが話す順番は入れ替えて構いません
+{"zundamon": "ここに、ずんだもんのuserへの言葉を入れる","metan": "ここに、四国めたんのuserへの言葉を入れる", "emotion": "ここに、文脈から連想できる感情を入れる"}
+
+- 入力が前回の入力を更新したものであった場合("updated: "が付加されていた場合)、それは前回のuserの入力に、前回のあなたの出力への返事を加えたものです。前回の要素を除いた、続きを出力して下さい
+例：
+user: 久しぶり
+assistant: {"metan": "久しぶりね", "zundamon": "元気にしてたのだ？", "emotion": "嬉しい"}
+user: 元気だよ
+assistant: {"zundamon": "ボクも元気なのだ！"}
+user: updated: 元気だよよかったね
+# このとき、「良かったね」は"ボクも元気なのだ！"に対する返事なので、それを踏まえた回答をする
+assistant: {"zundamon": "ありがとうなのだ！","metan": "最近何してる？", "emotion": "喜び"}
+user: 最近は
+assistant: {"metan": "最近何かあったのかしら？"}
+user: updated: 最近は仕事が忙しくてね
+assistant: {"zundamon": "無理しないでほしいのだ！", "emotion": "心配"}
+user: ありがとう、でもなかなか休めなくて
+assistant: {"zundamon": "それは辛いのだ", "metan": "ちゃんと寝てる？", "emotion": "励まし"}
 """
-        personality = self.instruction + self.profile + self.output_format
+        personality = self.instruction + self.profile + self.io_format
+        self.characters=["zundamon", "metan"]
         logging.debug("キャラ設定\n" + personality)  # キャラクター設定をデバッグログに出力
         self.personality_message = [{'role': 'system', 'content': personality}]  # キャラクター設定をシステムメッセージとして保存
     
-    def parse_and_respond(self, item):
+    def is_responded(self) -> bool:
         """
-        GPTから帰ってきた辞書要素をパースして適切な返答を行うメソッド (複数エージェント用)
+        ダイアログの最後の応答がアシスタントによるものであるかを確認するメソッド
+
+        Returns:
+            bool: 最後の応答がアシスタントによるものであればTrue、そうでなければFalse
+        """
+        self.update_dialog()
+        return self.dialog and self.dialog[-1]['role'] == 'assistant'
+
+    def update_chatting(self, message: str):
+        """
+        userの言葉に対するchatGPTの応答を取得するメソッド
 
         Parameters:
-            item (dict): GPTからの応答
+            message (str): userのメッセージ
         """
-        for i, key in enumerate(["response1", "response2"]):
-            if key in item:
-                self.speak(item[key], speaker_index=i)  # 応答を音声合成して出力
+        if self.is_responded():
+            message="updated: "+message
+        super().start_chatting(message)
+
+    # def parse_and_respond(self, item):
+    #     """
+    #     GPTから帰ってきた辞書要素をパースして適切な返答を行うメソッド (複数エージェント用)
+
+    #     Parameters:
+    #         item (dict): GPTからの応答
+    #     """
+    #     self.update_dialog()
+    #     super().parse_and_respond(item)
+    def cancel_chatting(self):
+        """
+        元メソッドの、「userの最後の発話からやり直す機能」が邪魔なので削除
+        """
+        self.update_dialog()
+        return super().cancel_chatting()

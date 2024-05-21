@@ -6,13 +6,14 @@ author: Matsumoto
 from speech.google_stt import SpeechRecognizer
 from speech.conf import VOICEVOX_APIKEY
 from speech.voicevox import TextToVoiceVoxWeb
-from speech.mouse_and_ear import VoiceVoxSpeaker
+from speech.mouse_and_ear import VoiceVoxSpeaker,VoiceVoxWebSpeaker
 import logging
 import time
 from gpt.gpt_agent import GPTAgent, MultiGPTAgent
 import cProfile
 import pstats
 import io
+import requests,json,pyaudio
 
 
 def voicevox_web_test():
@@ -95,11 +96,11 @@ def parroting():
                     recognizer.reset_recognition()  # 音声認識をリセット
 
 def speakerTest():
-    speaker=VoiceVoxSpeaker(speaker_id=8)
+    speaker=__class__(speaker_id=8)
     speaker.speak("こんにちは")
 
 def agentTest():
-    agent=GPTAgent(speaker=VoiceVoxSpeaker(speaker_id=2))
+    agent=GPTAgent(speaker=__class__(speaker_id=2))
     while True:
         response = agent.chat(input())
         for item in agent.pop_response():
@@ -110,7 +111,7 @@ def agentTest():
 
 def threadAgentTest():
     
-    agent=GPTAgent(speaker=VoiceVoxSpeaker(speaker_id=2))
+    agent=GPTAgent(speaker=__class__(speaker_id=2))
     while True:
         text=input()
         agent.stop_chat_thread()
@@ -162,26 +163,30 @@ def multiAgentConversationTest():
         - 自分のスピーカーの音を自分で拾うと、再帰的に話し続けてしまう
         - 応答が遅いことがある(たぶん、入力が上書きされるたびにGPTリクエスト送ってるせい)
         →なんか、タイミングによって変わるっぽい。サーバー側の問題説あるな、これ
-        - 話してるのを遮っても止まらないし、遮るタイミングによっては似たようなこと2回しゃべる
     """
 
     recognizer = SpeechRecognizer()  # 音声認識インスタンス
     response_start_threshold = 1  # 反応を開始する音声認識の間隙のしきい値
     response_decide_threshold = 5  # 反応を最後までやり切る音声認識の間隙のしきい値
     # speaker=ParallelSpeaker(VoiceVoxSpeaker(speaker_id=2))
+    # speakers=[VoiceVoxWebSpeaker(3),VoiceVoxWebSpeaker(2)]
     speakers=[VoiceVoxSpeaker(3),VoiceVoxSpeaker(2)]
     agent=MultiGPTAgent(speakers=speakers)
 
+    is_recognition_updated=False
     while True:
-        text=recognizer.get_latest_recognized()
-        if text and text.strip(): # 反応すべきテキストがある
-            for speaker in speakers: # なんか喋ってたら切り上げさせて、聞くのに集中する
-                speaker.interrupt()
-                agent.stop_chat_thread()
+        time.sleep(0.01)
         if recognizer.is_timed_out(response_start_threshold):  # タイムアウト確認
+            text=recognizer.get_latest_recognized()
             if text and text.strip(): # 反応すべきテキストがある
-                logging.debug("反応開始！") 
-                agent.start_chatting(text)
+                logging.debug("反応開始！")
+                for speaker in speakers:
+                    speaker.interrupt()
+                agent.stop_chat_thread()
+                if not is_recognition_updated:
+                    agent.start_chatting(text)
+                else:
+                    agent.update_chatting(text)
                 # エージェントが話し終わるまで待機
                 while not agent.end_event.is_set():
                     # logging.debug("待機中...")
@@ -191,12 +196,14 @@ def multiAgentConversationTest():
                         for speaker in speakers:
                             speaker.interrupt()
                         agent.cancel_chatting()
+                        is_recognition_updated=True
                         break
                     time.sleep(0.01)
                 logging.debug("待機ループ脱出！") 
-                
-                if recognizer.is_timed_out(response_decide_threshold):
+                if agent.end_event.is_set():
                     recognizer.reset_recognition()  # 音声認識をリセット
+                    is_recognition_updated=False
+
 def main():
     logging.basicConfig(level=logging.DEBUG)
     # logging.basicConfig(level=logging.INFO)  # ログレベルをINFOに設定
@@ -208,7 +215,6 @@ def main():
     # speakerTest()  # 音声合成ラッパーのテスト
     # agentConversationTest()  # エージェントとの音声会話テスト
     multiAgentConversationTest()  # 複数エージェントとの音声会話テスト
-
 
 
 
