@@ -96,11 +96,11 @@ def parroting():
                     recognizer.reset_recognition()  # 音声認識をリセット
 
 def speakerTest():
-    speaker=__class__(speaker_id=8)
+    speaker=VoiceVoxWebSpeaker(speaker_id=8)
     speaker.speak("こんにちは")
 
 def agentTest():
-    agent=GPTAgent(speaker=__class__(speaker_id=2))
+    agent=GPTAgent(speaker=VoiceVoxWebSpeaker(speaker_id=2))
     while True:
         response = agent.chat(input())
         for item in agent.pop_response():
@@ -111,7 +111,7 @@ def agentTest():
 
 def threadAgentTest():
     
-    agent=GPTAgent(speaker=__class__(speaker_id=2))
+    agent=GPTAgent(speaker=VoiceVoxWebSpeaker(speaker_id=2))
     while True:
         text=input()
         agent.stop_chat_thread()
@@ -165,7 +165,7 @@ def multiAgentConversationTest():
         →なんか、タイミングによって変わるっぽい。サーバー側の問題説あるな、これ
     """
 
-    recognizer = SpeechRecognizer()  # 音声認識インスタンス
+    recognizer = SpeechRecognizer(sensitivity=0.2)  # 音声認識インスタンス
     response_start_threshold = 1  # 反応を開始する音声認識の間隙のしきい値
     response_decide_threshold = 5  # 反応を最後までやり切る音声認識の間隙のしきい値
     # speaker=ParallelSpeaker(VoiceVoxSpeaker(speaker_id=2))

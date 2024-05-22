@@ -28,7 +28,7 @@ import threading
 import queue
 import time
 import logging
-
+import numpy as np
 
 
 # Google Cloud Speech-to-Textの設定
@@ -40,11 +40,12 @@ CHUNK = int(RATE / 10)  # 100msごとにオーディオデータを処理する�
 
 class MicrophoneStream:
     """マイクロフォンからのストリーミング入力を処理するクラス"""
-    def __init__(self, rate, chunk):
+    def __init__(self, rate, chunk,sensitivity=1.0):
         self._rate = rate  # サンプルレート
         self._chunk = chunk  # チャンクサイズ
         self._buff = queue.Queue()  # オーディオデータを一時保存するキュー
         self.closed = True  # ストリームの開閉状態
+        self.sensitivity = sensitivity
 
     def __enter__(self):
         self._audio_interface = pyaudio.PyAudio()  # PyAudioインスタンスを作成
@@ -68,8 +69,11 @@ class MicrophoneStream:
 
     def _fill_buffer(self, in_data, frame_count, time_info, status_flags):
         """バッファにオーディオデータを追加するコールバック関数"""
-        self._buff.put(in_data)  # 受け取ったオーディオデータをキューに追加
-        return None, pyaudio.paContinue  # ストリーム処理を継続
+        # オーディオデータの感度を調整
+        audio_data = np.frombuffer(in_data, dtype=np.int16)
+        audio_data = (audio_data * self.sensitivity).astype(np.int16)
+        self._buff.put(audio_data.tobytes())
+        return None, pyaudio.paContinue
 
     def generator(self):
         """オーディオデータのジェネレータ"""
@@ -93,7 +97,7 @@ class MicrophoneStream:
 
 
 class SpeechRecognizer:
-    def __init__(self, timeout=6):
+    def __init__(self, timeout=6,sensitivity=1.0):
         # Google Speech-to-Textクライアントの初期化
         self.client = speech.SpeechClient()  # Speech-to-Text APIのクライアントを作成
         self.config = speech.RecognitionConfig(
@@ -110,6 +114,7 @@ class SpeechRecognizer:
         
         self.last_recognized_time = None
         self.time_memory_lock = threading.Lock()
+        self.sensitivity=sensitivity
 
         # ここで開始してもいいけど、外部から開始してもいいよ
         self.start_recognition()  # 音声認識ループを開始
@@ -117,7 +122,7 @@ class SpeechRecognizer:
     def start_recognition(self):
         """音声認識ループを実行するメソッド"""
         self.stop_event = threading.Event()  # 終了イベントを初期化
-        self.recognition_thread = threading.Thread(target=SpeechRecognizer.recognition_loop,name="recognizer", args=(self.recognized_queue, self.client, self.streaming_config, self.stop_event, self))
+        self.recognition_thread = threading.Thread(target=SpeechRecognizer.recognition_loop,name="recognizer", args=(self.recognized_queue, self.client, self.streaming_config, self.stop_event, self,self.sensitivity))
         self.recognition_thread.start()
     
     def stop_recognition(self):
@@ -129,12 +134,12 @@ class SpeechRecognizer:
     # APIとのセッションは並列処理で実装
     # (APIの仕様上、「音声認識するたびに」実行される無限ループもどきを構築しないといけないので)
     @staticmethod
-    def recognition_loop(queue, client, streaming_config, stop_event, recognizer):
+    def recognition_loop(queue, client, streaming_config, stop_event, recognizer,sensitivity):
         """
         音声認識を開始するメソッド
         認識結果は片っ端からqueueにぶち込む
         """
-        with MicrophoneStream(RATE, CHUNK) as stream:  # マイクロフォンストリームを開始
+        with MicrophoneStream(RATE, CHUNK,sensitivity=sensitivity) as stream:  # マイクロフォンストリームを開始
             audio_generator = stream.generator()  # オーディオデータのジェネレータを取得
             requests = (speech.StreamingRecognizeRequest(audio_content=content)
                         for content in audio_generator)  # オーディオデータをリクエストに変換
