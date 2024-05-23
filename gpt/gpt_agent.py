@@ -178,8 +178,10 @@ class GPTAgent:
         for item in response:  # 疑似ループでレスポンスを処理
             if interrupt_event.is_set():  # 中断イベントがセットされているか確認
                 return
-            self.response_queue.put(item)  # 応答アイテムをキューに追加
             self.parse_and_respond(item)  # 応答アイテムをパースして返答
+            if interrupt_event.is_set():  # 中断イベントがセットされているか確認
+                return
+            self.response_queue.put(item)  # 応答アイテムをキューに追加
         end_event.set()  # 応答終了イベントをセット
         response_time = time.time() - start_time  # 応答時間を計算
         logging.debug(f"応答時間: {response_time}秒")  # 応答時間をデバッグログに出力
