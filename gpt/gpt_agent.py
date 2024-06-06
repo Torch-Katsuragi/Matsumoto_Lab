@@ -203,6 +203,9 @@ class GPTAgent:
             self.dialog.pop()
         self.stop_chat_thread()
 
+    def reset(self):
+        self.dialog=[]
+
 
 # 複数エージェントでも動かせるよって例
 class MultiGPTAgent(GPTAgent):
