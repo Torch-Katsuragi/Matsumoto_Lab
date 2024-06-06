@@ -204,6 +204,10 @@ class GPTAgent:
         self.stop_chat_thread()
 
     def reset(self):
+        """
+        会話ログなどをリセット
+        """
+        self.update_dialog()
         self.dialog=[]
 
 
