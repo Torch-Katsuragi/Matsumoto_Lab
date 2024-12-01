@@ -210,7 +210,7 @@ def test_gpt_file_processor():
     GPTFileProcessorのテスト関数
     """
 
-    processor = GPTFileProcessor()
+    processor = GPTFileProcessor(output_json=True)
     # filepath = "test.txt"  # テスト用のファイルを作成する必要がある
     dirpath = processor.select_directory()  # フォルダ選択ダイアログで取得
     if not dirpath:  # キャンセルされた場合

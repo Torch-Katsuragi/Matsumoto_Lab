@@ -23,8 +23,9 @@ class GPTFileProcessor:
             output_json (bool): JsonGPTHandlerを使用するかどうか
         """
         self.model = model  # 使用するGPTモデルを設定
+        self.output_json=output_json
         # output_jsonがTrueの場合はJsonGPTHandlerを使用し、Falseの場合はGPTHandlerを使用
-        self.gpt_handler = JsonGPTHandler() if output_json else GPTHandler()
+        self.gpt_handler = JsonGPTHandler() if self.output_json else GPTHandler()
         self.dirpath = ""  # ディレクトリパスを格納する変数
 
     def process_file(self, filepath, instructions):
@@ -50,12 +51,18 @@ class GPTFileProcessor:
             {"role": "user", "content": text},
         ]
 
-        response = self.gpt_handler.chat(messages, model=self.model)
-        processed_text = "".join(response)
+        streaming_object = self.gpt_handler.chat(messages, model=self.model)
 
-        logging.debug(f"処理済みテキスト:\n{processed_text}")
+        # 無駄にstreamingしているので，全部出てくるまで待つ
+        if self.output_json:
+            response={}
+            for item in streaming_object:  # 疑似ループでレスポンスを処理
+                response.update(item)  # 応答アイテムをresponseに追加
+        else:
+            response = "".join(streaming_object)
+        logging.debug(f"処理済みテキスト:\n{response}")
 
-        return processed_text
+        return response
 
     def select_file(self):
         """
