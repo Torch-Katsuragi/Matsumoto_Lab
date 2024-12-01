@@ -1,6 +1,7 @@
 import logging
 import tkinter as tk
 import os
+import json
 from tkinter import filedialog
 
 try:
@@ -57,7 +58,14 @@ class GPTFileProcessor:
         if self.output_json:
             response={}
             for item in streaming_object:  # 疑似ループでレスポンスを処理
-                response.update(item)  # 応答アイテムをresponseに追加
+                for key, value in item.items():
+                    try:
+                        # valueがjson文字列である場合、辞書に変換
+                        parsed_value = json.loads(value)
+                        response[key] = parsed_value
+                    except json.JSONDecodeError:
+                        # json文字列でない場合、そのまま追加
+                        response[key] = value
         else:
             response = "".join(streaming_object)
         logging.debug(f"処理済みテキスト:\n{response}")
