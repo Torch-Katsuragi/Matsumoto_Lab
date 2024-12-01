@@ -10,6 +10,7 @@ from speech.mouse_and_ear import VoiceVoxSpeaker,VoiceVoxWebSpeaker
 import logging
 import time
 from gpt.gpt_agent import GPTAgent, MultiGPTAgent
+from gpt.gpt_fileprocess import GPTFileProcessor
 import cProfile
 import pstats
 import io
@@ -204,9 +205,43 @@ def multiAgentConversationTest():
                     recognizer.reset_recognition()  # 音声認識をリセット
                     is_recognition_updated=False
 
+def test_gpt_file_processor():
+    """
+    GPTFileProcessorのテスト関数
+    """
+
+    processor = GPTFileProcessor()
+    # filepath = "test.txt"  # テスト用のファイルを作成する必要がある
+    dirpath = processor.select_directory()  # フォルダ選択ダイアログで取得
+    if not dirpath:  # キャンセルされた場合
+        return
+
+    instructions = r"""
+# Instructions
+以下のOutput formatに従って項目を埋めること
+
+# Output format
+- 出力はJson形式で，以下のフォーマットに従ってください(空文字""はあなたが変更するところ)
+{"内容の要約":"",
+"自由記述枠":""}
+
+"""
+
+    for filepath in dirpath:
+        processed_text = processor.process_file(filepath, instructions)
+        if processed_text:
+            print(f"ファイル: {filepath}\n{processed_text}\n")
+
+
+
+
+
 def main():
+    # ログレベルを設定
     logging.basicConfig(level=logging.DEBUG)
-    # logging.basicConfig(level=logging.INFO)  # ログレベルをINFOに設定
+    # logging.basicConfig(level=logging.INFO)  # 必要に応じてINFOレベルに変更
+
+    # 各テスト関数を呼び出す
     # speech_recognition_test()  # 音声認識のテスト
     # voicevox_web_test()  # VoiceVox Webのテスト
     # parroting()  # オウム返しのテスト(音声認識→音声合成複合)
@@ -214,7 +249,8 @@ def main():
     # threadAgentTest()  # スレッドを使用したエージェントのテスト
     # speakerTest()  # 音声合成ラッパーのテスト
     # agentConversationTest()  # エージェントとの音声会話テスト
-    multiAgentConversationTest()  # 複数エージェントとの音声会話テスト
+    # multiAgentConversationTest()  # 複数エージェントとの音声会話テスト
+    test_gpt_file_processor()  # GPTでの一括ファイル処理のテスト
 
 
 

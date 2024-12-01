@@ -31,6 +31,7 @@ class GPTHandler:
         """
         self.last_char = ["、", "。", "！", "!", "?", "？", "\n", "}"]
         self.openai_model_name = [
+            "gpt-4o-mini",
             "gpt-4o",
             "gpt-4o-2024-05-13",
             "gpt-4-turbo",
@@ -61,14 +62,14 @@ class GPTHandler:
     def chat_gpt(
         self,
         messages: list,
-        model: str = "gpt-3.5-turbo-0613",
+        model: str = "gpt-4o-mini",
         temperature: float = 0.7,
     ) -> Generator[str, None, None]:
         """ChatGPTを使用して会話を行う
 
         Args:
             messages (list): 会話のメッセージ
-            model (str): 使用するモデル名 (デフォルト: "gpt-3.5-turbo-0613")
+            model (str): 使用するモデル名 (デフォルト: "gpt-4o-mini")
             temperature (float): ChatGPTのtemperatureパラメータ (デフォルト: 0.7)
         Returns:
             Generator[str, None, None]): 会話の返答を順次生成する
@@ -131,14 +132,14 @@ class GPTHandler:
     def chat(
         self,
         messages: list,
-        model: str = "gpt-3.5-turbo-0613",
+        model: str = "gpt-4o-mini",
         temperature: float = 0.7,
     ) -> Generator[str, None, None]:
         """指定したモデルを使用して会話を行う
 
         Args:
             messages (list): 会話のメッセージリスト
-            model (str): 使用するモデル名 (デフォルト: "gpt-3.5-turbo-0613")
+            model (str): 使用するモデル名 (デフォルト: "gpt-4o-mini")
             temperature (float): サンプリングの温度パラメータ (デフォルト: 0.7)
         Returns:
             Generator[str, None, None]): 会話の返答を順次生成する
@@ -153,17 +154,23 @@ class GPTHandler:
             return
 
 class JsonGPTHandler(GPTHandler):
+    """
+    JSON形式でChatGPTの応答を処理するためのハンドラークラス。
+
+    GPTHandlerクラスを継承し、chatgptとのやり取り部分を親クラスから書き換えて
+    streamingを1文字ずつ→json形式で1データずつに変更
+    """
     def chat_gpt(
         self,
         messages: list,
-        model: str = "gpt-3.5-turbo",
+        model: str = "gpt-4o-mini",
         temperature: float = 0.7,
     ) -> Generator[str, None, None]:
         """ChatGPTを使用して会話を行う
 
         Args:
             messages (list): 会話のメッセージ
-            model (str): 使用するモデル名 (デフォルト: "gpt-3.5-turbo-0613")
+            model (str): 使用するモデル名 (デフォルト: "gpt-4o-mini")
             temperature (float): ChatGPTのtemperatureパラメータ (デフォルト: 0.7)
         Returns:
             Generator[str, None, None]): 会話の返答を順次生成する
@@ -242,7 +249,7 @@ class JsonGPTHandler(GPTHandler):
 def test_chat_gpt_streaming():
     handler = GPTHandler()
     messages = [{"role": "user", "content": "おとぎ話の桃太郎を、あなたが覚えている限り詳細に解説してください。"}]
-    model = "gpt-3.5-turbo-0613"
+    model = "gpt-4o-mini"
     temperature = 0.7
 
 
@@ -255,7 +262,7 @@ def test_chat_gpt_streaming():
 def test_chat_gpt_json_streaming():
     handler = JsonGPTHandler()
     messages = [{"role": "user", "content": "おとぎ話の桃太郎を、あなたが覚えている限り詳細に解説してください。解答は起承転結ごとにjsonで出力してください"}]
-    model = "gpt-4o"
+    model = "gpt-4o-mini"
     temperature = 0.7
 
     # # 大量にリクエストしまくると、4つくらいで止まることがある。万全を期すなら、どうにかして接続をkillする必要あり？
@@ -278,10 +285,10 @@ def test_chat_gpt_json_streaming():
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
-    test_chat_gpt_json_streaming()
+    test_chat_gpt_streaming()
+    # test_chat_gpt_json_streaming()
     
 
 
 if __name__ == '__main__':
     main()
-

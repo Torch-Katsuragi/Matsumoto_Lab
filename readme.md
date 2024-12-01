@@ -17,7 +17,7 @@
 
 voicevox api：https://voicevox.su-shiki.com/su-shikiapis/
 
-他は、わざわざ説明する必要はないでしょう。
+他は、わざわざ説明する必要はないでしょう。ggrks。
    ```
    OPENAI_API_KEY=your_openai_api_key
    VOICEVOX_API_KEY=your_voicevox_api_key
@@ -45,3 +45,4 @@ tester.pyに、成果物の実行例がまとめてあります(内容はコメ�
 - `voicevox_web_test()`: VOICEVOXのWeb APIを使用してテキストを音声に変換するテスト関数。
 - `speech_recognition_test()`: 音声認識のテスト関数。
 - `parroting()`: 音声認識と音声合成のテストを行うスクリプト。喋っている途中に話しかけると中断して話し直す機能を持つ。
+- `test_gpt_file_processor()`: GPTを使用して、指定したディレクトリ内のファイルを一括で特定の処理にかける。
