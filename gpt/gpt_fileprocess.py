@@ -20,11 +20,12 @@ class GPTFileProcessor:
 
         Args:
             model (str): 使用するGPTモデル
-            use_json_handler (bool): JsonGPTHandlerを使用するかどうか
+            output_json (bool): JsonGPTHandlerを使用するかどうか
         """
-        self.model = model
-        # output_jsonがTrueの場合はJsonGPTHandlerを使用
+        self.model = model  # 使用するGPTモデルを設定
+        # output_jsonがTrueの場合はJsonGPTHandlerを使用し、Falseの場合はGPTHandlerを使用
         self.gpt_handler = JsonGPTHandler() if output_json else GPTHandler()
+        self.dirpath = ""  # ディレクトリパスを格納する変数
 
     def process_file(self, filepath, instructions):
         """
@@ -80,14 +81,14 @@ class GPTFileProcessor:
         """
         root = tk.Tk()
         root.withdraw()
-        dirpath = filedialog.askdirectory(title="フォルダ選択")
-        if not dirpath:  # キャンセルされた場合
+        self.dirpath = filedialog.askdirectory(title="フォルダ選択")
+        if not self.dirpath:  # キャンセルされた場合
             return []
 
         filepaths = []
-        for filename in os.listdir(dirpath):
+        for filename in os.listdir(self.dirpath):
             if any(filename.endswith(ext) for ext in extensions):
-                filepaths.append(os.path.join(dirpath, filename))
+                filepaths.append(os.path.join(self.dirpath, filename))
 
         return filepaths
 
