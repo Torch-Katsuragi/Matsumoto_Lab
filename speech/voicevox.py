@@ -282,6 +282,28 @@ class TextToVoiceVoxWeb(TextToVoiceVox):
         self.play_wav(wav)
 
 
+class TextToAivisSpeech(TextToVoiceVox):
+    """
+    AivisSpeechを使用してテキストから音声を生成するクラス。
+    """
+    def __init__(self, host: str = "127.0.0.1", port: str = "10101", speaker_id: int = 888753760) -> None:
+        """
+        AivisSpeechクラスの初期化メソッド。
+        
+        Args:
+            host (str, optional): AivisSpeechサーバーのホスト名。デフォルトは "127.0.0.1"。
+            port (str, optional): AivisSpeechサーバーのポート番号。デフォルトは "50021"。
+            speaker_id (int, optional): 話者ID。デフォルトは888753760。
+
+            888753760: 'Anneli.ノーマル',
+            888753761: 'Anneli.通常',
+            888753762: 'Anneli.テンション高め',
+            888753763: 'Anneli.落ち着き',
+            888753764: 'Anneli.上機嫌',
+            888753765: 'Anneli.怒り・悲しみ'
+        """
+        super().__init__(host, port, speaker_id)
+        # AivisSpeech用の初期化処理があればここに追加
 
 
 
@@ -289,9 +311,10 @@ class TextToVoiceVoxWeb(TextToVoiceVox):
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
-    text_to_voice = TextToVoiceVox(speaker_id=8)
+    # text_to_voice = TextToVoiceVox(speaker_id=8)
+    text_to_voice = TextToAivisSpeech()
 
-    text_to_voice.put_text("こんにちは")
+    text_to_voice.put_text("ざぁこ，ざぁーこ♡")
 
 if __name__ == "__main__":
     main()
