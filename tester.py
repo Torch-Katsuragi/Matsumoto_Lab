@@ -6,7 +6,7 @@ author: Matsumoto
 from speech.google_stt import SpeechRecognizer
 from speech.conf import VOICEVOX_APIKEY
 from speech.voicevox import TextToVoiceVoxWeb
-from speech.mouse_and_ear import VoiceVoxSpeaker,VoiceVoxWebSpeaker
+from speech.speech_wrapper import VoiceVoxSpeaker,VoiceVoxWebSpeaker
 import logging
 import time
 from gpt.gpt_agent import GPTAgent, MultiGPTAgent

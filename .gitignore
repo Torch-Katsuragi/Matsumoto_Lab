@@ -1,3 +1,10 @@
+# Private data (added by user)
+# .user_dataディレクトリ内の全てのファイルとディレクトリを除外
+.user_data/*
+!.user_data/.gitkeep
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

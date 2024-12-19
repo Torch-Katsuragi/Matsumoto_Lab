@@ -3,10 +3,10 @@ author Matsumoto
 音声認識とか音声合成とかの外部からの振舞いを統一して切り変えやすくするためのラッパ群
 """
 try:
-    from .voicevox import TextToVoiceVoxWeb,TextToVoiceVox
+    from .voicevox import TextToVoiceVoxWeb,TextToVoiceVox,TextToAivisSpeech
     from .conf import *
 except:
-    from voicevox import TextToVoiceVoxWeb,TextToVoiceVox
+    from voicevox import TextToVoiceVoxWeb,TextToVoiceVox,TextToAivisSpeech
     from conf import *
 
 from queue import Queue
@@ -14,6 +14,10 @@ from threading import Thread
 import logging
 
 class Speaker:
+    """
+    抽象クラスのつもり．
+    一応，ダミーとしても機能する
+    """
     def speak(self, text: str) -> None:
         """
         テキストを音声に変換して再生する。
@@ -217,6 +221,25 @@ class VoiceVoxWebSpeaker(VoiceVoxSpeaker):
         # 初めてのインスタンス定義時にだけ音声合成クラスを呼び出し
         if self.__class__.tts is None:
             self.__class__.tts = TextToVoiceVoxWeb(apikey=VOICEVOX_APIKEY)
+
+
+class AivisSpeechSpeaker(VoiceVoxSpeaker):
+
+    def __init__(self, speaker_id):
+        """
+        speaker_id (int, optional): 話者ID。デフォルトは888753760。
+
+        | Anneli | ノーマル | 888753760 |
+        | Anneli | 通常 | 888753761 |
+        | Anneli | テンション高め | 888753762 |
+        | Anneli | 落ち着き | 888753763 |
+        | Anneli | 上機嫌 | 888753764 |
+        | Anneli | 怒り・悲しみ | 888753765 |
+        """
+        self.speaker_id = speaker_id
+        # 初めてのインスタンス定義時にだけ音声合成クラスを呼び出し
+        if __class__.tts is None:
+            __class__.tts = TextToAivisSpeech()
 
 def main():
     logging.basicConfig(level=logging.DEBUG)

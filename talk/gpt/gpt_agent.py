@@ -13,14 +13,16 @@ class GPTAgent:
     会話AIとして最低限の個性を維持するためのクラス
     """
 
-    def __init__(self, name="アイ", profile=None, speakers=[]):
+    def __init__(self, name="アイ", profile=None, speakers=[],log_title:str="",log_directory=""):
         """
         コンストラクタ
 
         Parameters:
-            name (str): エージェントの名前
-            profile (str): エージェントのプロフィール
-            speakers (list): 音声合成用のスピーカーリスト
+            name (str): エージェントの名前。デフォルトは"アイ"。
+            profile (str): エージェントのプロフィール。Noneの場合はデフォルトのプロフィールを使用。
+            speakers (list): 音声合成用のスピーカーリスト。空リストの場合は音声合成は行われない。
+            log_title (str): ログファイルのタイトル。
+            log_directory (str): ログファイルの出力ディレクトリ。例: "./path/to/log/directory"。
         """
         self.name = name
         self.profile = profile
@@ -33,6 +35,10 @@ class GPTAgent:
         self.end_event = threading.Event()  # チャット終了イベントを初期化
         self.response_queue = queue.Queue()  # gpt出力を保存するキューを初期化
         self.characters=[]
+        self.date=time.strftime('%Y%m%d_%H%M')
+        self.log_title=log_title
+        self.log_directory=log_directory
+        self._log_lock = threading.Lock() # dialogのアクセス競合防止用のlock
 
         self.init_GPT()
 
@@ -82,7 +88,7 @@ class GPTAgent:
         personality = self.instruction + self.profile + self.output_format
         self.characters=[self.name]
         logging.debug("キャラ設定\n" + personality)  # キャラクター設定をデバッグログに出力
-        self.personality_message = [{'role': 'system', 'content': personality}]  # キャラクター設定をシステムメッセージとして保存
+        self.sys_message = [{'role': 'system', 'content': personality}]  # キャラクター設定をシステムメッセージとして保存
 
     def get_name(self):
         """
@@ -108,43 +114,115 @@ class GPTAgent:
         print(text)  # 合成された音声テキストをコンソールに出力
     
 
-    def update_dialog(self)->bool:
+    def put_dialog(self,role:str,content)->bool:
         """
-        self.response_queueの要素をself.dialogに追加するメソッド
-        何か要素をdialogに保存したらtrue, そうでないならfalseを返す
+        chatgptとのmessageをself.dialogに追加するメソッド
+
+        Parameters:
+            role (str): メッセージのロール（"sys","user"または"assistant"）。
+            message (str or dict): メッセージの内容。文字列または辞書型。
+
+        Returns:
+            bool: メッセージが追加された場合はTrue、そうでない場合はFalse。
         """
-        full_response = {}  # 完全な応答を格納する辞書
-        while not self.response_queue.empty():
-            response_item = self.response_queue.get()  # キューから応答アイテムを取得
-            full_response.update(response_item)  # 応答アイテムを完全な応答に追加
-        logging.debug("dialog updated: %s", full_response)  # ダイアログが更新されたことをデバッグログに出力し、full_responseの中身も出力
-        if self.dialog and self.dialog[-1]['role'] == 'assistant':
-            # 最後の要素のcontentを取得
-            last_content = self.dialog[-1]['content']
-            # contentが辞書形式の文字列であるか確認し、辞書に変換
-            last_dict = eval(last_content) if last_content.startswith('{') and last_content.endswith('}') else {}
-            # full_responseを既存の辞書に追加
-            last_dict.update(full_response)
-            # 更新された辞書を文字列に変換してcontentに格納
-            self.dialog[-1]['content'] = str(last_dict)
-        else:
-            # 最後の要素がassistantでない場合、新しい要素を追加
-            if full_response:
-                self.dialog.append({'role': 'assistant', 'content': str(full_response)})  # ダイアログにアシスタントの応答を追加
-        return bool(full_response)
+        with self._log_lock:
+            logging.debug("dialog updated: %s,%s", role, content)  # ダイアログが更新されたことをデバッグログに出力
+            if self.dialog and self.dialog[-1]['role'] == role:
+                # roleが同一の場合、最後の要素のcontentを取得
+                last_content = self.dialog[-1]['content']
+                # contentが辞書形式の文字列であるか確認し、辞書に変換
+                last_dict = eval(last_content) if last_content.startswith('{') and last_content.endswith('}') else {}
+                if last_dict and isinstance(content, dict):
+                    # 最後の要素が辞書型で、messageも辞書型の場合、既存の辞書にmessageを追加
+                    last_dict.update(content)
+                    self.dialog[-1]['content'] = str(last_dict)
+                elif not last_dict and isinstance(content, str):
+                    # 最後の要素が辞書型ではなく、messageが文字列型の場合、既存の文字列にmessageを追加
+                    self.dialog[-1]['content'] += content
+                else:
+                    # 上記以外の場合、新しい要素として追加
+                    self.dialog.append({'role': role, 'content': str(content)})
+            else:
+                # ダイアログにアシスタントの応答を追加
+                self.dialog.append({'role': role, 'content': str(content)})
+        # 自動バックアップ
+        self.save_dialog(log_title="autosave")
+        return bool(content)
+    
+    def get_dialog(self, contain_sys=False) -> list:
+        """
+        現在の会話ログを取得するメソッド
+
+        Returns:
+            list: 現在の会話ログ
+        """
+        dialog=[]
+        with self._log_lock:
+            if contain_sys:
+                dialog = self.sys_message + self.dialog
+            else:
+                dialog = self.dialog
+        return dialog
+    
+    def get_recent_output(self)->str:
+        """
+        self.dialogの中で、roleが"assistant"である要素のうち、最新のものを返すメソッド。
+
+        Returns:
+            dict: 最新のassistantの出力。要素が存在しない場合はNoneを返す。
+        """
+        with self._log_lock:
+            for i in range(len(self.dialog)-1,-1,-1):
+                if self.dialog[i]['role'] == 'assistant':
+                    return self.dialog[i]['content']
+            return None
+    
+    def save_dialog(self,log_title="",log_directory=""):
+        """
+        現在の会話ログを.txtファイルに保存するメソッド
+        """
+        import os
+        try:
+            # ファイル名決定
+            if log_title:
+                title=log_title
+            elif self.log_title:
+                title=self.log_title
+            else:
+                title="NoTitle"
+            
+            # 保存先決定
+            if log_directory:
+                directory = log_directory
+            elif self.log_directory:
+                directory=self.log_directory
+            else:
+                directory = ".user_data/log"
+            
+            if not os.path.exists(directory):
+                os.makedirs(directory, exist_ok=True)
+            
+            # 現在の日時とタイトルを使ってファイルパスを作成し、書き込みモードで開く
+            file_path = f"{directory}/{self.date}_{title}.txt"
+            with open(file_path, "w", encoding="utf-8") as file:
+                # ダイアログの各エントリをファイルに書き込む
+                for entry in self.get_dialog(contain_sys=True):
+                    file.write(f"{entry}\n")
+            logging.debug("ダイアログの保存に成功しました。")  # 保存成功のデバッグログ
+        except Exception as e:
+            logging.debug("ダイアログの保存に失敗しました: %s", e)  # 保存失敗のエラーログ
 
     def start_chatting(self, message: str):
         """
         userの言葉に対するchatGPTの応答を取得するメソッド
-
         Parameters:
             message (str): userのメッセージ
         """
-        self.update_dialog()  # ダイアログを更新
-        self.dialog.append({'role': 'user', 'content': message})  # ダイアログにユーザーのメッセージを追加
+        self.put_dialog('user', message)  # ダイアログにユーザーのメッセージを追加
+        self.save_dialog(log_title="autosave") # 更新したダイアログをログファイルにも反映
 
         gpt_handler = JsonGPTHandler()  # GPTハンドラーを初期化
-        messages = self.personality_message + self.dialog  # メッセージリストを作成
+        messages = self.sys_message + self.dialog  # メッセージリストを作成
         self.interrupt_event = threading.Event()  # 中断イベントを初期化
         self.end_event = threading.Event()  # 応答終了イベントを初期化
         # チャットスレッドを開始
@@ -161,6 +239,7 @@ class GPTAgent:
         
         for i, key in enumerate(self.characters):
             if key in item:
+                self.put_dialog('assistant',item)
                 self.speak(item[key], speaker_index=i)  # 応答を音声合成して出力
 
     def chatting_loop(self, messages, gpt_handler, interrupt_event, end_event):
@@ -199,15 +278,16 @@ class GPTAgent:
         """
         ユーザーの指示をキャンセルするメソッド
         """
-        if self.dialog and self.dialog[-1].get("role") == "user":
-            self.dialog.pop()
-        self.stop_chat_thread()
+        with self._log_lock:
+            if self.dialog and self.dialog[-1].get("role") == "user":
+                self.dialog.pop()
+            self.stop_chat_thread()
 
     def reset(self):
         """
         会話ログなどをリセット
         """
-        self.update_dialog()
+        self.put_dialog()
         self.dialog=[]
 
 
@@ -241,8 +321,7 @@ class MultiGPTAgent(GPTAgent):
 - 話題がひと段落したら、次の話題を提供する
 - userの事は「user」とは呼ばない。名前を教えられるまでは二人称で呼び、教えられたら名前で呼ぶ
 """
-        if self.profile is None:
-            self.profile = f"""
+        self.profile = f"""
 # Profile
 
 ## 1人目のプロフィール
@@ -301,8 +380,7 @@ assistant: {"zundamon": "それは辛いのだ", "metan": "ちゃんと寝てる
 """
         personality = self.instruction + self.profile + self.io_format
         self.characters=["zundamon", "metan"]
-        logging.debug("キャラ設定\n" + personality)  # キャラクター設定をデバッグログに出力
-        self.personality_message = [{'role': 'system', 'content': personality}]  # キャラクター設定をシステムメッセージとして保存
+        self.sys_message = [{'role': 'system', 'content': personality}]  # キャラクター設定をシステムメッセージとして保存
     
     def is_responded(self) -> bool:
         """
@@ -311,8 +389,11 @@ assistant: {"zundamon": "それは辛いのだ", "metan": "ちゃんと寝てる
         Returns:
             bool: 最後の応答がアシスタントによるものであればTrue、そうでなければFalse
         """
-        self.update_dialog()
-        return self.dialog and self.dialog[-1]['role'] == 'assistant'
+        self._log_lock.acquire()
+        try:
+            return bool(self.dialog) and self.dialog[-1]['role'] == 'assistant'
+        finally:
+            self._log_lock.release()
 
     def update_chatting(self, message: str):
         """
@@ -323,20 +404,12 @@ assistant: {"zundamon": "それは辛いのだ", "metan": "ちゃんと寝てる
         """
         if self.is_responded():
             message="updated: "+message
-        super().start_chatting(message)
+        self.start_chatting(message)
 
-    # def parse_and_respond(self, item):
-    #     """
-    #     GPTから帰ってきた辞書要素をパースして適切な返答を行うメソッド (複数エージェント用)
 
-    #     Parameters:
-    #         item (dict): GPTからの応答
+    # def cancel_chatting(self):
     #     """
-    #     self.update_dialog()
-    #     super().parse_and_respond(item)
-    def cancel_chatting(self):
-        """
-        元メソッドの、「userの最後の発話からやり直す機能」が邪魔なので削除
-        """
-        self.update_dialog()
-        return super().cancel_chatting()
+    #     元メソッドの、「userの最後の発話からやり直す機能」が邪魔なので削除
+    #     """
+    #     self.put_dialog()
+    #     return super().cancel_chatting()

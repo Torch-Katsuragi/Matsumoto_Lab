@@ -11,6 +11,8 @@ import pyaudio
 import requests
 import logging
 
+import re
+
 try:
     from .err_handler import ignoreStderr
 except:
@@ -21,21 +23,25 @@ class TextToVoiceVox(object):
     VoiceVoxを使用してテキストから音声を生成するクラス。
     """
 
-    def __init__(self, host: str = "127.0.0.1", port: str = "50021", speaker_id:int=8) -> None:
+    def __init__(self, host: str = "127.0.0.1", port: str = "50021", speaker_id:int=8,split_character:list=["。","？","!", "…"]) -> None:
         """クラスの初期化メソッド。
         Args:
             host (str, optional): VoiceVoxサーバーのホスト名。デフォルトは "127.0.0.1"。
             port (str, optional): VoiceVoxサーバーのポート番号。デフォルトは "52001"。
 
         """
-        self.queue: Queue[str] = Queue()
+        self.text_queue: Queue[str] = Queue()
+        self.wav_queue: Queue[bytes] = Queue()
         self.host = host
         self.port = port
         self.play_flg = False
         self.finished = True
-        self.voice_thread = Thread(target=self.text_to_voice_thread,name="speaker")
+        self.voice_thread = Thread(target=self.text_to_voice_thread,name="text2voice")
+        self.speaker_thread = Thread(target=self.speak_voice_thread,name="speaker")
         self.voice_thread.start()
+        self.speaker_thread.start()
         self.set_speaker_id(speaker_id)
+        self.split_character = split_character
 
     def set_speaker_id(self,id):
         self.speaker_id=id
@@ -43,21 +49,38 @@ class TextToVoiceVox(object):
     def __exit__(self) -> None:
         """音声合成スレッドを終了する。"""
         self.voice_thread.join()
+        self.speaker_thread.join()
 
     def text_to_voice_thread(self) -> None:
         """
-        音声合成スレッドの実行関数。
-        キューからテキストを取り出し、text_to_voice関数を呼び出す。
-
+        音声合成スレッドの実行関数。VOICEVOXの生成待ち時間をメイン処理から分離する為に必要。
+        キューにテキストがある限り、text_to_voice関数を呼び出す。
         """
         while True:
-            if self.queue.qsize() > 0:
-                text = self.queue.get()
-                self.text_to_voice(text)
-            if self.queue.qsize() == 0:
-                self.finished = True
+            if self.text_queue.qsize() > 0:
+                text = self.text_queue.get()
+                if not text: # 空の時はスルー
+                    continue
+                logging.debug(f"generate: \"{text}\"")
+                wav = self.text_to_voice(text)
+                logging.debug(f"play: \"{text}\"")
+                self.wav_queue.put(wav)
+
             time.sleep(0.01)
     
+    def speak_voice_thread(self) -> None:
+        """
+        wav_queueのデータを再生するスレッド。音声の再生待ち時間をメイン処理や音声合成処理から分離するために必要
+        キューにデータがある限り、play_wav関数を呼び出す。
+        """
+        while True:
+            if self.wav_queue.qsize() > 0:
+                wav = self.wav_queue.get()
+                self.play_wav(wav)
+                logging.debug("playing completed")
+            if self.text_queue.qsize() == 0 and self.wav_queue.qsize()==0:
+                self.finished = True
+            time.sleep(0.01)
 
     def allow_speech(self):
         self.play_flg=True
@@ -67,8 +90,13 @@ class TextToVoiceVox(object):
         キューをクリアし、音声の再生を直ちに取りやめる。
         """
         logging.debug(f"interrupted in {self.__class__.__name__}.stop_and_clear")
-        self.queue.queue.clear()  # キューをクリア
-        self.play_flg = False  # 再生フラグをFalseに設定(再生中なら即ループ脱出)
+
+        # キューをクリア
+        self.text_queue.queue.clear()  
+        self.wav_queue.queue.clear() 
+
+        # 再生フラグをFalseに設定(再生中なら即ループ脱出)
+        self.play_flg = False  
 
     def set_speaker_id(self,id):
         """
@@ -88,9 +116,26 @@ class TextToVoiceVox(object):
             blocking (bool, optional): 音声合成が完了するまでブロックするかどうか。デフォルトはFalse。
 
         """
+
         if play_now:
             self.play_flg = True
-        self.queue.put(text)
+
+        # 区切り文字に従ってテキストを分割
+        text_chunks = [text]
+        for char in self.split_character:
+            new_chunks = []
+            for chunk in text_chunks:
+                parts = chunk.split(char)
+                for i, part in enumerate(parts):
+                    if i < len(parts) -1:
+                        new_chunks.append(part + char)
+                    else:
+                        new_chunks.append(part)
+            text_chunks = new_chunks
+
+        for chunk in text_chunks:
+            self.text_queue.put(chunk)
+
         self.finished = False
         if blocking:
             self.wait_finish()
@@ -183,9 +228,9 @@ class TextToVoiceVox(object):
             stream.close()
         p.terminate()
 
-    def text_to_voice(self, text: str) -> None:
+    def text_to_voice(self, text: str):
         """
-        テキストから音声を合成して再生する。
+        テキストから音声を合成。
 
         Args:
             text (str): 音声合成対象のテキスト。
@@ -193,7 +238,90 @@ class TextToVoiceVox(object):
         """
         res = self.post_audio_query(text)
         wav = self.post_synthesis(res)
-        self.play_wav(wav)
+        return wav
+
+class TextToVoiceVox2(TextToVoiceVox):
+    """
+    1との違い
+    postで受け取ったwavデータをqueueに入れ、threadで再生
+    """
+
+    def __init__(self, host: str = "127.0.0.1", port: str = "50021", speaker_id:int=8) -> None:
+        """クラスの初期化メソッド。
+        あえて、superは書かない
+        Args:
+            host (str, optional): VoiceVoxサーバーのホスト名。デフォルトは "127.0.0.1"。
+            port (str, optional): VoiceVoxサーバーのポート番号。デフォルトは "52001"。
+        """
+        self.wav_queue: Queue[bytes] = Queue()
+        self.text_queue: Queue[str] = Queue()
+        self.host = host
+        self.port = port
+        self.play_flg = False
+        self.finished = True
+        self.thread_exit = False
+        
+        self.wav2voice_thread=Thread(target=self.wav_to_voice_thread,name="wav2voice")
+        self.wav2voice_thread.start()
+
+        self.set_speaker_id(speaker_id)
+
+    def __exit__(self) -> None:
+        """音声合成スレッドを終了する。"""
+        self.wav2voice_thread.join()
+
+    def wav_to_voice_thread(self):
+        """
+        wav_queueの再生
+        """
+        while True:
+            if self.wav_queue.qsize() > 0:
+                wav = self.wav_queue.get()
+                text=self.text_queue.get()
+                logging.debug("w2v:"+text)
+                try:
+                    self.play_wav(wav)
+                except:
+                    logging.debug("fail:"+text)
+            if self.wav_queue.qsize()==0:
+                self.finished=True
+            if self.thread_exit:
+                break
+            time.sleep(0.01)
+    
+    def text_to_wav(self,text):
+        res = self.post_audio_query(text)
+        wav = self.post_synthesis(res) 
+        self.text_queue.put(text)
+        self.wav_queue.put(wav)
+
+    def put_text(
+        self, text: str, play_now: bool = True, blocking: bool = False
+    ) -> None:
+        """
+        音声合成のためのテキストをキューに追加する。
+        Args:
+            text (str): 音声合成対象のテキスト。
+            play_now (bool, optional): すぐに音声再生を開始するかどうか。デフォルトはTrue。
+            blocking (bool, optional): 音声合成が完了するまでブロックするかどうか。デフォルトはFalse。
+        """
+        if play_now:
+            self.play_flg = True
+        self.finished = False
+        logging.debug("t2w:"+text)
+        self.text_to_wav(text)
+        if blocking:
+            self.wait_finish()
+
+    def stop_and_clear(self) -> None:
+        """
+        キューをクリアし、音声の再生を直ちに取りやめる。
+        """
+        logging.debug(f"interrupted in {self.__class__.__name__}.stop_and_clear")
+        self.wav_queue.queue.clear()  # キューをクリア
+        self.text_queue.queue.clear()  # キューをクリア
+        self.play_flg = False  # 再生フラグをFalseに設定(再生中なら即ループ脱出)
+
 
 
 class TextToVoiceVoxWeb(TextToVoiceVox):
@@ -213,17 +341,6 @@ class TextToVoiceVoxWeb(TextToVoiceVox):
         self.voice_thread = Thread(target=self.text_to_voice_thread,name="speaker")
         self.voice_thread.start()
         self.speaker_id=speaker_id
-
-    # def text_to_voice_thread(self) -> None:
-    #     """
-    #     音声合成スレッドの実行関数。
-    #     キューからテキストを取り出し、text_to_voice関数を呼び出す。
-
-    #     """
-    #     while True:
-    #         if self.queue.qsize() > 0 and self.play_flg:
-    #             text = self.queue.get()
-    #             self.text_to_voice(text)
 
     def post_web(
         self,
@@ -313,8 +430,9 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
     # text_to_voice = TextToVoiceVox(speaker_id=8)
     text_to_voice = TextToAivisSpeech()
-
-    text_to_voice.put_text("ざぁこ，ざぁーこ♡")
+    while True:
+        text = input("発話させたい文章を入力してください: ")
+        text_to_voice.put_text(text)
 
 if __name__ == "__main__":
     main()
