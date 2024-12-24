@@ -1,14 +1,31 @@
+"""
+GPTとやり取りするためのクラス
+GPTHandlerよりもちょっと上のレイヤーで，
+- GPTに与えるプロンプトを管理
+- 並列処理の管理
+を担当．
+
+音声合成の処理はクラス外でやってもいいんだけど，その場合外からGPTAgentの並列処理を監視し続ける必要がある(いつ返答が来たかわからんので)．
+なのでGPTAgentの並列処理の中で「GPTHandlerから応答来る→speakerに応答テキストをぶち込む」ってした方がシンブル．
+
+結果的に，MultiGPTAgentをagent数1にして使った方が便利になった継承元のGPTAgentは飾りです．
+暇だったら統合するけど多分やらないと思う
+
+author: matsumoto
+"""
+
+
 
 
 # 相対パスからimport
-from .gpt_handler import GPTHandler, JsonGPTHandler
+from .gpt.gpt_handler import GPTHandler, JsonGPTHandler
 
 import logging
 import threading
 import queue
 import time
 
-class GPTAgent:
+class AIAgent:
     """
     会話AIとして最低限の個性を維持するためのクラス
     """
@@ -292,7 +309,7 @@ class GPTAgent:
 
 
 # 複数エージェントでも動かせるよって例
-class MultiGPTAgent(GPTAgent):
+class MultiAIAgent(AIAgent):
     
     def init_GPT(self):
         """

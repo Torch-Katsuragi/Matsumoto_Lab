@@ -1,11 +1,11 @@
 try:
     # talkパッケージ外からの参照
-    from .gpt.gpt_agent import GPTAgent, MultiGPTAgent
+    from .gpt.ai_agent import AIAgent, MultiAIAgent
     from .speech.speech_wrapper import VoiceVoxSpeaker, AivisSpeechSpeaker
     from .speech.google_stt import SpeechRecognizer
 except ImportError:
     # 内部からの参照
-    from gpt.gpt_agent import GPTAgent, MultiGPTAgent
+    from talk.gpt.ai_agent import AIAgent, MultiAIAgent
     from speech.speech_wrapper import VoiceVoxSpeaker, AivisSpeechSpeaker
     from speech.google_stt import SpeechRecognizer
 
@@ -31,7 +31,7 @@ class ChatBot():
         self.speakers=[AivisSpeechSpeaker(speaker_id=888753761),AivisSpeechSpeaker(speaker_id=888753761)]  # AivisSpeechスピーカーの設定
 
         # 会話モードの設定
-        self.agent=MultiGPTAgent(speakers=self.speakers)
+        self.agent=MultiAIAgent(speakers=self.speakers)
     
     def start_chatting(self) -> None:
 

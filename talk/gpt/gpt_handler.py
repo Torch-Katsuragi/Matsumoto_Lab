@@ -1,3 +1,10 @@
+"""
+OpenAIが提供するAPIを介してGPTと通信する
+ストリーミングされた出力結果をいい感じにパースするなど，低レイヤーの処理だけ担当してmessageの編集などは別の場所で処理
+author: matsumoto
+"""
+
+
 import json
 from typing import Generator, List
 

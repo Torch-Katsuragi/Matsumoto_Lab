@@ -49,8 +49,9 @@ class GPTFileProcessor:
             return None  # ファイルがない場合Noneを返す
         
         output_format=f"""
-
+# 出力形式
 出力はJSON形式とし，以下のような形式にすること．ただし，埋められない項目がある場合は"unknown"とすること
+また，番号が振ってある項目は自分の判断でさらに数を増やしてもよい．
 {output_field}
 """
         messages = [
@@ -71,7 +72,7 @@ class GPTFileProcessor:
     
     def process_on_directory(self, instructions, output_field={"main_output":"タスクの結果"}, dirpath:str="", extensions:list=[".txt"], output_path=""):
         """
-        特定のディレクトリにあるフォルダすべてに対してprocess_fileを実行するメソッド
+        特定のディレクトリにあるファィルすべてに対してprocess_fileを実行するメソッド
         """
         # フォルダ選択ダイアログを開き、フォルダパスを取得 -> dirpath
         if not dirpath:
@@ -94,7 +95,7 @@ class GPTFileProcessor:
         for filepath in filepaths:
             processed_data = self.process_file(instructions, output_field=output_field, filepath=filepath)
             if processed_data is not None:
-                # 各ファイルの結果を表形式で保存
+                # 処理結果を1行目の項目名順に並べ替えてlistにする(行に対応)
                 row = [os.path.basename(filepath)] + [processed_data.get(key, "") for key in header[1:]]
                 output_table.append(row)
         
@@ -112,9 +113,11 @@ class GPTFileProcessor:
         """
         import csv
 
+        # Start of Selection
         try:
             full_path = os.path.join(dirpath, filepath)  # dirpathとfilepathを結合してフルパスを作成
-            with open(full_path, 'w', newline='', encoding='shift-jis') as f:
+            # shift_jisでエンコードできない文字が存在する場合、置き換え文字を使用してエンコード
+            with open(full_path, 'w', newline='', encoding='shift-jis', errors='replace') as f:
                 writer = csv.writer(f)
                 writer.writerows(data)
             logging.info(f"出力結果を{full_path}に保存しました。")
@@ -192,6 +195,6 @@ def test_process_on_directory():
 
 
 if __name__ == "__main__":
-    # test_gpt_file_processor()
-    test_process_on_directory()
+    test_gpt_file_processor()
+    # test_process_on_directory()
 

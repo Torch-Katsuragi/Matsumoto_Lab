@@ -3,14 +3,14 @@ author: Matsumoto
 """
 
 
-from speech.google_stt import SpeechRecognizer
-from speech.conf import VOICEVOX_APIKEY
-from speech.voicevox import TextToVoiceVoxWeb
-from speech.speech_wrapper import VoiceVoxSpeaker,VoiceVoxWebSpeaker
+from talk.speech.google_stt import SpeechRecognizer
+from talk.speech.conf import VOICEVOX_APIKEY
+from talk.speech.voicevox import TextToVoiceVoxWeb
+from talk.speech.speech_wrapper import VoiceVoxSpeaker,VoiceVoxWebSpeaker
 import logging
 import time
-from gpt.gpt_agent import GPTAgent, MultiGPTAgent
-from gpt.gpt_fileprocess import GPTFileProcessor
+from talk.gpt.ai_agent import AIAgent, MultiAIAgent
+from talk.gpt.gpt_fileprocess import GPTFileProcessor
 import cProfile
 import pstats
 import io
@@ -101,7 +101,7 @@ def speakerTest():
     speaker.speak("こんにちは")
 
 def agentTest():
-    agent=GPTAgent(speaker=VoiceVoxWebSpeaker(speaker_id=2))
+    agent=AIAgent(speaker=VoiceVoxWebSpeaker(speaker_id=2))
     while True:
         response = agent.chat(input())
         for item in agent.pop_response():
@@ -112,7 +112,7 @@ def agentTest():
 
 def threadAgentTest():
     
-    agent=GPTAgent(speaker=VoiceVoxWebSpeaker(speaker_id=2))
+    agent=AIAgent(speaker=VoiceVoxWebSpeaker(speaker_id=2))
     while True:
         text=input()
         agent.stop_chat_thread()
@@ -133,7 +133,7 @@ def agentConversationTest():
     response_decide_threshold = 5  # 反応を最後までやり切る音声認識の間隙のしきい値
     # speaker=ParallelSpeaker(VoiceVoxSpeaker(speaker_id=2))
     speaker=VoiceVoxSpeaker(speaker_id=0)
-    agent=GPTAgent(speakers=[speaker])
+    agent=AIAgent(speakers=[speaker])
 
     while True:
         if recognizer.is_timed_out(response_start_threshold):  # タイムアウト確認
@@ -172,7 +172,7 @@ def multiAgentConversationTest():
     # speaker=ParallelSpeaker(VoiceVoxSpeaker(speaker_id=2))
     # speakers=[VoiceVoxWebSpeaker(3),VoiceVoxWebSpeaker(2)]
     speakers=[VoiceVoxSpeaker(3),VoiceVoxSpeaker(2)]
-    agent=MultiGPTAgent(speakers=speakers)
+    agent=MultiAIAgent(speakers=speakers)
 
     is_recognition_updated=False
     while True:
@@ -231,6 +231,8 @@ def test_gpt_file_processor():
         processed_text = processor.process_file(filepath, instructions)
         if processed_text:
             print(f"ファイル: {filepath}\n{processed_text}\n")
+
+
 
 
 
