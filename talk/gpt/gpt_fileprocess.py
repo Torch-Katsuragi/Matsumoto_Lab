@@ -70,7 +70,7 @@ class GPTFileProcessor:
 
         return response
     
-    def process_on_directory(self, instructions, output_field={"main_output":"タスクの結果"}, dirpath:str="", extensions:list=[".txt"], output_path=""):
+    def process_on_directory(self, instructions, output_field={"main_output":"タスクの結果"}, keyword="",dirpath:str="", extensions:list=[".txt"], output_path=""):
         """
         特定のディレクトリにあるファィルすべてに対してprocess_fileを実行するメソッド
         """
@@ -84,7 +84,8 @@ class GPTFileProcessor:
         filepaths = []
         for filename in os.listdir(dirpath):
             if any(filename.endswith(ext) for ext in extensions):
-                filepaths.append(os.path.join(dirpath, filename))
+                if keyword in filename: # keywordを含むファイルのみ追加
+                    filepaths.append(os.path.join(dirpath, filename))
         
         # filepathsの要素それぞれに対してprocess_fileを実行し，表として保存 -> output_table
         output_table = []
