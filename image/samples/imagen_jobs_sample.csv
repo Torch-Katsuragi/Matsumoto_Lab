@@ -1,0 +1,3 @@
+output_dir,output_filename,prompt,ref_images,aspect_ratio,resolution,number_of_images,seed
+,,水彩画風のかわいいロボット,,1:1,1K,1,
+,,空飛ぶ車がある未来都市の夕焼け,,16:9,2K,1,42

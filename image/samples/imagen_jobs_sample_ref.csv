@@ -1,0 +1,4 @@
+output_dir,output_filename,prompt,ref_images,aspect_ratio,resolution,number_of_images,seed
+,,{0}のキャラクターを宇宙服を着た姿で描いてください,C:\Users\kitay\github\Matsumoto_Lab\image\samples\sample_cat.png,1:1,1K,1,
+,,{0}のスタイルで未来都市を描いてください,C:\Users\kitay\github\Matsumoto_Lab\image\samples\sample_landscape.png,16:9,2K,1,
+,,{0}のキャラクターを{1}の風景の中に配置してください,C:\Users\kitay\github\Matsumoto_Lab\image\samples\sample_cat.png;C:\Users\kitay\github\Matsumoto_Lab\image\samples\sample_landscape.png,16:9,2K,1,

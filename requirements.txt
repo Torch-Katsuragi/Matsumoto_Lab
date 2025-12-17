@@ -2,17 +2,21 @@
 
 
 
-pygame
-google-cloud-speech
+pygame; platform_machine != "ARM64"
+google-cloud-speech; platform_machine != "ARM64"
 
 # openai and its test-code
 python-dotenv
 openai
 SpeechRecognition
-pyaudio
+pyaudio; python_version < "3.13"
 requests
 six
 numpy
 
+# image (Imagen on Vertex AI)
+google-cloud-aiplatform>=1.48.0; platform_machine != "ARM64"
+google-genai
+
 # camera
-opencv-python
+opencv-python; platform_machine != "ARM64"

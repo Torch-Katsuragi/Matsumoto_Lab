@@ -1,0 +1,9 @@
+output_dir,output_filename,prompt,mode,init_image_path,mask_image_path,ref_image_path,mask_mode,subject_type,style_description,number_of_images,aspect_ratio,seed
+C:\Users\kitay\github\Matsumoto_Lab\image\samples,sample_cat,かわいい猫が窓辺で日向ぼっこしている写真,t2i,,,,,,,1,1:1,12345
+C:\Users\kitay\github\Matsumoto_Lab\image\samples,sample_landscape,美しい山と湖のある風景写真,t2i,,,,,,,1,16:9,67890
+
+
+
+
+
+
