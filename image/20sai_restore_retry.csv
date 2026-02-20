@@ -1,0 +1,28 @@
+output_dir,output_filename,prompt,ref_images,aspect_ratio,resolution,number_of_images,seed
+I:\マイドライブ\20歳の顔展\写真\inbox\大人\restored_4k,大沼_中世古隆也_v1,"{0}を現代の高性能デジタルカメラで撮影したかのような高画質画像として再生成してください。
+
+重要な指示:
+- 被写体の人物の顔、表情、服装、ポーズを忠実に再現すること
+- 背景もできるだけ元の写真を維持すること
+- 白黒写真の場合は自然なカラーで再生成すること
+- 画質、解像度、鮮明さを大幅に向上させること
+- 自然な肌の質感と照明を再現すること",I:\マイドライブ\20歳の顔展\写真\inbox\大人\大沼_中世古隆也.png,3:4,4K,1,
+I:\マイドライブ\20歳の顔展\写真\inbox\大人\restored_4k,大沼_中世古隆也_v2,"{0}の人物を高解像度で復元してください。
+
+最重要: この写真に写っている人物と同一人物として再生成すること。顔を別人にしないでください。
+
+指示:
+- 顔の骨格、目の形、鼻の形、口元を正確に維持すること
+- 現代のデジタルカメラで撮影したような鮮明さにすること
+- 白黒の場合は自然な色彩を付けること
+- 表情とポーズはそのまま維持すること",I:\マイドライブ\20歳の顔展\写真\inbox\大人\大沼_中世古隆也.png,3:4,4K,1,
+I:\マイドライブ\20歳の顔展\写真\inbox\大人\restored_4k,大沼_中世古隆也_v3,"Restore {0} as a high-resolution modern photograph.
+
+CRITICAL: Preserve the exact facial identity of the person in the original photo.
+
+Requirements:
+- Keep the exact same facial features
+- Enhance image quality to modern DSLR quality
+- Add natural colors if the original is black and white
+- Maintain the original pose and expression
+- Natural lighting and skin texture",I:\マイドライブ\20歳の顔展\写真\inbox\大人\大沼_中世古隆也.png,3:4,4K,1,
