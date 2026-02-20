@@ -20,3 +20,6 @@ google-genai
 
 # camera
 opencv-python; platform_machine != "ARM64"
+
+# image packing
+rectpack
